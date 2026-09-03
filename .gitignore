@@ -1,0 +1,30 @@
+# Python Environments
+venv/
+env/
+.venv/
+Pipfile
+Pipfile.lock
+
+# Python Byte-compiled / Cache files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# IDEs and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Video and Media Assets (Optional: Ignore large test files)
+*.mp4
+*.mov
+*.avi
+*.mkv
+!assets/demo_output.mp4  # Keep your main demo video
+
+# Logs and Databases
+*.log
+*.sqlite3
