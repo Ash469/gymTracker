@@ -6,7 +6,6 @@ import single_arm_dumbbell_row from '../exercises/single_arm_dumbbell_row';
 import squat from '../exercises/squat';
 import russian_twist from '../exercises/russian_twist';
 import lateral_raise from '../exercises/lateral_raise';
-import calf_raise from '../exercises/calf_raise';
 
 export const EXERCISES_DATA = {
   bicep_curl,
@@ -16,8 +15,7 @@ export const EXERCISES_DATA = {
   single_arm_dumbbell_row,
   squat,
   russian_twist,
-  lateral_raise,
-  calf_raise
+  lateral_raise
 };
 
 export const EXERCISES_LIST = Object.values(EXERCISES_DATA);
@@ -31,12 +29,15 @@ export async function fetchExercises() {
     const data = await res.json();
     
     // Merge UI metadata from EXERCISES_DATA into backend list
-    const exercises = (data.exercises || []).map(ex => ({
-      ...ex,
-      ...(EXERCISES_DATA[ex.id] || {})
-    }));
+    const exercises = (data.exercises || [])
+      .filter(ex => Boolean(EXERCISES_DATA[ex.id]))
+      .map(ex => ({
+        ...ex,
+        ...(EXERCISES_DATA[ex.id] || {})
+      }));
 
-    return { exercises: exercises.length > 0 ? exercises : EXERCISES_LIST, active_exercise_id: data.active_exercise_id || "bicep_curl" };
+    const validActiveId = EXERCISES_DATA[data.active_exercise_id] ? data.active_exercise_id : "bicep_curl";
+    return { exercises: exercises.length > 0 ? exercises : EXERCISES_LIST, active_exercise_id: validActiveId };
   } catch (err) {
     console.warn("Using React exercises dataset:", err);
     return {

@@ -1,4 +1,5 @@
 import time
+import numpy as np
 from typing import List, Tuple
 from src.utils import calculate_angle
 from src.exercises.base_exercise import BaseExercise
@@ -25,15 +26,26 @@ class TricepExtension(BaseExercise):
         is_good_form = True
         self.form_warning = ""
 
-        # Upper arm drifting away from head / flaring guardrail
-        upper_arm_angle = calculate_angle(l_hip, l_shoulder, l_elbow)
-        if upper_arm_angle < 140:
-            self.form_warning = "WARNING: Elbows flaring / upper arm moving! Keep upper arms stationary near head"
+        # Form / Safety Checks (INDEPENDENT of rep state)
+        # 1. Elbow flare / upper arm horizontal drift > 35° from vertical
+        dx_arm = abs(l_elbow[0] - l_shoulder[0])
+        dy_arm = abs(l_elbow[1] - l_shoulder[1]) + 1e-6
+        arm_flare = np.degrees(np.arctan2(dx_arm, dy_arm))
+        if arm_flare > 35:
+            self.form_warning = "WARNING: Elbows flaring outward! Keep upper arms stationary near head"
             is_good_form = False
 
-        # Hold deeply flexed stretch (<85 deg) for 2s to activate
+        # 2. Forward torso lean > 25° from vertical
+        dx_torso = abs(l_shoulder[0] - l_hip[0])
+        dy_torso = abs(l_shoulder[1] - l_hip[1]) + 1e-6
+        torso_lean = np.degrees(np.arctan2(dx_torso, dy_torso))
+        if torso_lean > 25:
+            self.form_warning = "WARNING: Torso lean forward > 25°! Keep core upright"
+            is_good_form = False
+
+        # Hold flexed position (<=75°) for 2s to activate
         if not self.active:
-            if angle < 85:
+            if angle <= 75:
                 if self.hold_start_time is None:
                     self.hold_start_time = time.time()
                 elapsed = time.time() - self.hold_start_time
@@ -42,7 +54,7 @@ class TricepExtension(BaseExercise):
                 if elapsed >= self.required_hold_duration:
                     self.active = True
                     self.stage = "UP"
-                    self.feedback = "TRACKING ACTIVE! EXTEND DUMBBELL OVERHEAD"
+                    self.feedback = "TRACKING ACTIVE! EXTEND DUMBBELL OVERHEAD (>=155°)"
                     self.hold_start_time = None
                     if not self.start_workout_time:
                         self.start_workout_time = time.time()
@@ -50,16 +62,16 @@ class TricepExtension(BaseExercise):
                     self.feedback = f"HOLD STILL TO START: {remaining:.1f}s"
             else:
                 self.hold_start_time = None
-                self.feedback = "HOLD WEIGHT BEHIND HEAD (<85 deg) TO START"
+                self.feedback = "HOLD WEIGHT BEHIND HEAD (<=75 deg) TO START"
 
             return self.counter, "INACTIVE", angle, self.feedback, self.active, self.form_warning, self.form_score
 
-        # Rep Counting
-        if angle > 155:
+        # Rep-State Machine (Extension Lockout >= 155°, Flexion Bottom <= 65°)
+        if angle >= 155:
             self.stage = "DOWN"
             self.has_reached_target_state = True
             self.feedback = "PEAK TRICEP LOCKOUT! LOWER SLOWLY BEHIND HEAD"
-        elif angle < 85:
+        elif angle <= 65:
             if self.stage == "DOWN" and self.has_reached_target_state:
                 self.counter += 1
                 self.has_reached_target_state = False

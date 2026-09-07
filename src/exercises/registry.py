@@ -8,7 +8,6 @@ from src.exercises.squat import Squat
 from src.exercises.dumbbell_bench_press import DumbbellBenchPress
 from src.exercises.single_arm_dumbbell_row import SingleArmDumbbellRow
 from src.exercises.russian_twist import DumbbellRussianTwist
-from src.exercises.calf_raise import CalfRaise
 
 class ExerciseRegistry:
     def __init__(self):
@@ -20,8 +19,7 @@ class ExerciseRegistry:
             "single_arm_dumbbell_row": SingleArmDumbbellRow,
             "squat": Squat,
             "russian_twist": DumbbellRussianTwist,
-            "lateral_raise": LateralRaise,
-            "calf_raise": CalfRaise
+            "lateral_raise": LateralRaise
         }
         self._instances: Dict[str, BaseExercise] = {}
 
@@ -43,4 +41,3 @@ class ExerciseRegistry:
 
 # Global registry instance singleton
 registry = ExerciseRegistry()
-

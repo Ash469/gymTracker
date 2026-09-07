@@ -16,8 +16,8 @@ def main():
         "--exercise",
         type=str,
         default="bicep_curl",
-        choices=["bicep_curl", "shoulder_press", "tricep_extension", "lateral_raise", "squat", "dumbbell_bench_press", "single_arm_dumbbell_row", "russian_twist", "calf_raise"],
-        help="Exercise model to track (bicep_curl, shoulder_press, tricep_extension, lateral_raise, squat, dumbbell_bench_press, single_arm_dumbbell_row, russian_twist, calf_raise)"
+        choices=["bicep_curl", "shoulder_press", "tricep_extension", "lateral_raise", "squat", "dumbbell_bench_press", "single_arm_dumbbell_row", "russian_twist"],
+        help="Exercise model to track (bicep_curl, shoulder_press, tricep_extension, lateral_raise, squat, dumbbell_bench_press, single_arm_dumbbell_row, russian_twist)"
     )
     args = parser.parse_args()
 
