@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import Navbar from './components/Navbar';
+import AuthModal from './components/AuthModal';
 import SelectionPage from './pages/SelectionPage';
 import TutorialPage from './pages/TutorialPage';
 import TrackerPage from './pages/TrackerPage';
@@ -10,7 +11,10 @@ import {
   selectExercise,
   fetchTelemetry,
   resetTracker,
-  fetchSummary
+  fetchSummary,
+  saveWorkoutSession,
+  getCurrentUser,
+  logoutUser
 } from './services/api';
 
 // Helper to parse current window location URL pathname into structured route object
@@ -41,6 +45,20 @@ export default function App() {
     reps: 0, stage: 'INACTIVE', angle: 0, feedback: '', active: false, form_warning: '', form_score: 100
   });
   const [summary, setSummary] = useState(null);
+  const [user, setUser] = useState(null);
+  const [authModal, setAuthModal] = useState({ isOpen: false, mode: 'login' });
+
+  // Load authenticated user profile on initial mount
+  useEffect(() => {
+    getCurrentUser()
+      .then(currentUser => setUser(currentUser))
+      .catch(() => {});
+  }, []);
+
+  const handleLogout = async () => {
+    await logoutUser();
+    setUser(null);
+  };
 
   // Navigation router function with HTML5 History API
   const navigate = (path) => {
@@ -113,6 +131,9 @@ export default function App() {
     fetchSummary().then(data => {
       setSummary(data);
       if (route.exerciseId) {
+        saveWorkoutSession(data, route.exerciseId)
+          .then(res => console.log('✅ Workout session persisted to database:', res))
+          .catch(err => console.error('Error saving workout to database:', err));
         navigate(`/exercise/${route.exerciseId}/summary`);
       } else {
         navigate('/');
@@ -122,7 +143,13 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-white text-zinc-900">
-      <Navbar route={route} navigate={navigate} />
+      <Navbar 
+        route={route} 
+        navigate={navigate} 
+        user={user}
+        onOpenAuth={(mode) => setAuthModal({ isOpen: true, mode: mode || 'login' })}
+        onLogout={handleLogout}
+      />
 
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-8 pb-12 flex-1">
         {route.view === 'selection' && (
@@ -158,6 +185,13 @@ export default function App() {
           />
         )}
       </main>
+
+      <AuthModal
+        isOpen={authModal.isOpen}
+        initialMode={authModal.mode}
+        onClose={() => setAuthModal(prev => ({ ...prev, isOpen: false }))}
+        onSuccess={(loggedUser) => setUser(loggedUser)}
+      />
     </div>
   );
 }

@@ -124,3 +124,173 @@ export async function fetchSummary() {
     };
   }
 }
+
+const BACKEND_API = '/api/v1';
+const TOKEN_KEY = 'formfit_auth_token';
+
+export function getStoredToken() {
+  return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setStoredToken(token) {
+  if (token) {
+    localStorage.setItem(TOKEN_KEY, token);
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+  }
+}
+
+export async function loginUser(email, password) {
+  const res = await fetch(`${BACKEND_API}/auth/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Login failed');
+  }
+  setStoredToken(data.token);
+  return data; // { user, token }
+}
+
+export async function registerUser({ name, email, password, fitnessLevel, primaryGoal, workoutFrequency }) {
+  const res = await fetch(`${BACKEND_API}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password, fitnessLevel, primaryGoal, workoutFrequency }),
+  });
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(data.error || 'Registration failed');
+  }
+  setStoredToken(data.token);
+  return data; // { user, token }
+}
+
+export async function getCurrentUser() {
+  const token = getStoredToken();
+  if (!token) return null;
+  try {
+    const res = await fetch(`${BACKEND_API}/auth/me`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data.user;
+    } else {
+      setStoredToken(null);
+      return null;
+    }
+  } catch (err) {
+    console.warn('Error fetching current user:', err);
+    return null;
+  }
+}
+
+export async function logoutUser() {
+  const token = getStoredToken();
+  if (token) {
+    try {
+      await fetch(`${BACKEND_API}/auth/logout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+    } catch (_) {}
+  }
+  setStoredToken(null);
+}
+
+export async function getAuthToken() {
+  const stored = getStoredToken();
+  if (stored) return stored;
+  try {
+    const res = await fetch(`${BACKEND_API}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'demo@formfit.com', password: 'Demo1234!' })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      setStoredToken(data.token);
+      return data.token;
+    }
+  } catch (err) {
+    console.warn('Auto auth error:', err);
+  }
+  return null;
+}
+
+export async function saveWorkoutSession(summaryData, exerciseId) {
+  try {
+    const token = await getAuthToken();
+    if (!token) return null;
+
+    // 1. Fetch backend exercise list to match UUID
+    const exRes = await fetch(`${BACKEND_API}/exercises`);
+    let targetExerciseId = null;
+    if (exRes.ok) {
+      const exData = await exRes.json();
+      const match = (exData.exercises || []).find(e => 
+        e.id === exerciseId || 
+        e.name.toLowerCase().replace(/[\s_-]+/g, '') === (exerciseId || '').toLowerCase().replace(/[\s_-]+/g, '')
+      );
+      if (match) targetExerciseId = match.id;
+    }
+
+    if (!targetExerciseId) return null;
+
+    // 2. Create active workout
+    const workoutRes = await fetch(`${BACKEND_API}/workouts`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      }
+    });
+    if (!workoutRes.ok) return null;
+    const { workout } = await workoutRes.json();
+
+    const avgScore = summaryData.form_score || 100;
+    const scores = (summaryData.rep_history || [])
+      .map(r => r.score || (r.quality === 'Good' ? 100 : 75))
+      .filter(s => typeof s === 'number');
+
+    const bestScore = scores.length > 0 ? Math.max(...scores) : avgScore;
+    const worstScore = scores.length > 0 ? Math.min(...scores) : avgScore;
+    const durationSeconds = summaryData.duration_seconds || 0;
+
+    // 3. Add set to workout
+    await fetch(`${BACKEND_API}/workouts/${workout.id}/sets`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        exerciseId: targetExerciseId,
+        reps: summaryData.reps || 0,
+        averageScore: avgScore,
+        bestScore,
+        worstScore,
+        duration: durationSeconds
+      })
+    });
+
+    // 4. Mark workout complete
+    const completeRes = await fetch(`${BACKEND_API}/workouts/${workout.id}/complete`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        duration: durationSeconds
+      })
+    });
+    return await completeRes.json();
+  } catch (err) {
+    console.error('Failed to persist workout to database:', err);
+    return null;
+  }
+}
