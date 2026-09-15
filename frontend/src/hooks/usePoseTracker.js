@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { wsService, ConnectionStatus } from '../services/websocket';
+import { poseDetector, POSE_CONNECTIONS } from '../services/pose/poseDetector';
+import { registry } from '../services/exercises/registry';
 
 export function usePoseTracker(activeExerciseId) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
-  const offscreenCanvasRef = useRef(null);
+
   const [cameraActive, setCameraActive] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState(ConnectionStatus.DISCONNECTED);
+  const [detectorReady, setDetectorReady] = useState(false);
   const [telemetry, setTelemetry] = useState({
     reps: 0,
     stage: 'INACTIVE',
@@ -16,46 +17,27 @@ export function usePoseTracker(activeExerciseId) {
     form_warning: '',
     form_score: 100.0,
     landmarks: [],
-    normalized_landmarks: []
+    normalized_landmarks: [],
+    connections: POSE_CONNECTIONS
   });
 
-  const isSendingFrameRef = useRef(false);
   const animationFrameIdRef = useRef(null);
   const streamRef = useRef(null);
 
-  // Initialize offscreen canvas for unmirrored frame extraction
-  if (!offscreenCanvasRef.current && typeof document !== 'undefined') {
-    offscreenCanvasRef.current = document.createElement('canvas');
-  }
-
-  // Synchronize WebSocket Connection & Status
+  // Initialize MediaPipe WASM PoseLandmarker Engine
   useEffect(() => {
-    wsService.connect();
-
-    const unsubscribeStatus = wsService.onStatusChange((status) => {
-      setConnectionStatus(status);
-      if (status === ConnectionStatus.CONNECTED && activeExerciseId) {
-        wsService.selectExercise(activeExerciseId);
+    let isMounted = true;
+    async function loadDetector() {
+      const ready = await poseDetector.init();
+      if (isMounted) {
+        setDetectorReady(ready);
       }
-    });
-
-    const unsubscribeTelemetry = wsService.onTelemetry((data) => {
-      setTelemetry(data);
-      isSendingFrameRef.current = false; // Reset frame lock on telemetry response
-    });
-
-    return () => {
-      unsubscribeStatus();
-      unsubscribeTelemetry();
-    };
-  }, [activeExerciseId]);
-
-  // Handle Exercise Selection Change
-  useEffect(() => {
-    if (activeExerciseId && connectionStatus === ConnectionStatus.CONNECTED) {
-      wsService.selectExercise(activeExerciseId);
     }
-  }, [activeExerciseId, connectionStatus]);
+    loadDetector();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Initialize Browser Webcam Stream
   useEffect(() => {
@@ -73,7 +55,7 @@ export function usePoseTracker(activeExerciseId) {
         });
 
         if (!mounted) {
-          stream.getTracks().forEach(t => t.stop());
+          stream.getTracks().forEach((t) => t.stop());
           return;
         }
 
@@ -94,18 +76,18 @@ export function usePoseTracker(activeExerciseId) {
     return () => {
       mounted = false;
       if (streamRef.current) {
-        streamRef.current.getTracks().forEach(t => t.stop());
+        streamRef.current.getTracks().forEach((t) => t.stop());
         streamRef.current = null;
       }
     };
   }, []);
 
-  // Main Render & Pose Landmark Overlay Drawing Loop
+  // Main 60 FPS Render & In-Browser Pose Detection Loop
   const renderFrameLoop = useCallback(() => {
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (video && canvas && video.readyState >= 2) {
+    if (video && canvas && video.readyState >= 2 && detectorReady) {
       const ctx = canvas.getContext('2d');
       const videoWidth = video.videoWidth || 640;
       const videoHeight = video.videoHeight || 480;
@@ -124,111 +106,87 @@ export function usePoseTracker(activeExerciseId) {
         ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
         ctx.restore();
 
-        // 2. Overlay Pose Skeleton Landmarks directly onto the mirrored display canvas
-        const normLandmarks = telemetry.normalized_landmarks;
-        const pixelLandmarks = telemetry.landmarks;
-        const connections = telemetry.connections || [
-          [11, 12], [11, 13], [13, 15], [12, 14], [14, 16],
-          [11, 23], [12, 24], [23, 24],
-          [23, 25], [25, 27], [27, 29], [27, 31],
-          [24, 26], [26, 28], [28, 30], [28, 32]
-        ];
+        // 2. Perform in-browser WASM Pose Detection
+        const detection = poseDetector.detectFrame(video, performance.now());
 
-        // Helper to convert normalized coordinate (0..1) to mirrored screen pixel coordinate
-        const getPointCoords = (index) => {
-          if (normLandmarks && normLandmarks[index]) {
-            const [, normX, normY] = normLandmarks[index];
-            return {
-              x: (1.0 - normX) * canvas.width,
-              y: normY * canvas.height
-            };
-          }
-          if (pixelLandmarks && pixelLandmarks[index]) {
-            const [, pxX, pxY] = pixelLandmarks[index];
-            const fw = telemetry.frame_width || canvas.width;
-            const fh = telemetry.frame_height || canvas.height;
-            const normX = pxX / fw;
-            const normY = pxY / fh;
-            return {
-              x: (1.0 - normX) * canvas.width,
-              y: normY * canvas.height
-            };
-          }
-          return null;
-        };
+        if (detection && detection.landmarks && detection.landmarks.length > 0) {
+          const currentExercise = registry.getExercise(activeExerciseId);
+          const exerciseResult = currentExercise.process(detection.landmarks);
 
-        const totalLandmarks = (normLandmarks && normLandmarks.length) || (pixelLandmarks && pixelLandmarks.length) || 0;
+          setTelemetry((prev) => ({
+            ...prev,
+            ...exerciseResult,
+            landmarks: detection.landmarks,
+            normalized_landmarks: detection.normalizedLandmarks,
+            frame_width: detection.frameWidth,
+            frame_height: detection.frameHeight,
+            connections: POSE_CONNECTIONS
+          }));
 
-        if (totalLandmarks > 0) {
-          const isWarning = Boolean(telemetry.form_warning);
-          const lineColor = isWarning ? '#ef4444' : '#10b981'; // Red on warning, emerald when good
-          const nodeColor = '#38bdf8'; // Sky blue joint nodes
+          // 3. Draw 60 FPS Pose Skeleton Overlay directly onto mirrored canvas
+          const normLandmarks = detection.normalizedLandmarks;
 
-          // Draw connecting skeleton lines
-          ctx.strokeStyle = lineColor;
-          ctx.lineWidth = 3;
-          ctx.lineCap = 'round';
-          ctx.lineJoin = 'round';
+          const getPointCoords = (index) => {
+            if (normLandmarks && normLandmarks[index]) {
+              const [normX, normY] = normLandmarks[index];
+              return {
+                x: (1.0 - normX) * canvas.width, // Mirror X coordinate
+                y: normY * canvas.height
+              };
+            }
+            return null;
+          };
 
-          connections.forEach(([p1, p2]) => {
-            if (p1 < totalLandmarks && p2 < totalLandmarks) {
-              const pt1 = getPointCoords(p1);
-              const pt2 = getPointCoords(p2);
+          const totalLandmarks = normLandmarks.length;
+          if (totalLandmarks > 0) {
+            const isWarning = Boolean(exerciseResult.warning);
+            const lineColor = isWarning ? '#ef4444' : '#10b981'; // Red on warning, emerald when good
+            const nodeColor = '#38bdf8'; // Sky blue joint nodes
 
-              if (pt1 && pt2) {
+            // Draw connecting skeleton lines
+            ctx.strokeStyle = lineColor;
+            ctx.lineWidth = 3;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            POSE_CONNECTIONS.forEach(([p1, p2]) => {
+              if (p1 < totalLandmarks && p2 < totalLandmarks) {
+                const pt1 = getPointCoords(p1);
+                const pt2 = getPointCoords(p2);
+
+                if (pt1 && pt2) {
+                  ctx.beginPath();
+                  ctx.moveTo(pt1.x, pt1.y);
+                  ctx.lineTo(pt2.x, pt2.y);
+                  ctx.stroke();
+                }
+              }
+            });
+
+            // Draw joint circles
+            for (let i = 0; i < totalLandmarks; i++) {
+              const pt = getPointCoords(i);
+              if (pt) {
+                ctx.fillStyle = nodeColor;
                 ctx.beginPath();
-                ctx.moveTo(pt1.x, pt1.y);
-                ctx.lineTo(pt2.x, pt2.y);
+                ctx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 1.5;
                 ctx.stroke();
               }
             }
-          });
-
-          // Draw joint circles
-          for (let i = 0; i < totalLandmarks; i++) {
-            const pt = getPointCoords(i);
-            if (pt) {
-              ctx.fillStyle = nodeColor;
-              ctx.beginPath();
-              ctx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
-              ctx.fill();
-              ctx.strokeStyle = '#ffffff';
-              ctx.lineWidth = 1.5;
-              ctx.stroke();
-            }
-          }
-        }
-
-        // 3. Extract unmirrored snapshot from offscreen canvas for ML Engine over WebSocket
-        if (!isSendingFrameRef.current && connectionStatus === ConnectionStatus.CONNECTED) {
-          isSendingFrameRef.current = true;
-
-          const offCanvas = offscreenCanvasRef.current;
-          if (offCanvas.width !== videoWidth || offCanvas.height !== videoHeight) {
-            offCanvas.width = videoWidth;
-            offCanvas.height = videoHeight;
-          }
-
-          const offCtx = offCanvas.getContext('2d');
-          if (offCtx) {
-            // Draw clean UNMIRRORED video frame for Python MediaPipe analysis
-            offCtx.drawImage(video, 0, 0, videoWidth, videoHeight);
-            const imageBase64 = offCanvas.toDataURL('image/jpeg', 0.6);
-            wsService.sendFrame(imageBase64);
-          } else {
-            isSendingFrameRef.current = false;
           }
         }
       }
     }
 
     animationFrameIdRef.current = requestAnimationFrame(renderFrameLoop);
-  }, [telemetry, connectionStatus]);
+  }, [detectorReady, activeExerciseId]);
 
   // Start/Stop RAF Loop
   useEffect(() => {
     animationFrameIdRef.current = requestAnimationFrame(renderFrameLoop);
-
     return () => {
       if (animationFrameIdRef.current) {
         cancelAnimationFrame(animationFrameIdRef.current);
@@ -237,19 +195,29 @@ export function usePoseTracker(activeExerciseId) {
   }, [renderFrameLoop]);
 
   const resetCounter = useCallback(() => {
-    wsService.resetCounter();
-    setTelemetry(prev => ({ ...prev, reps: 0, stage: 'INACTIVE', form_warning: '' }));
-  }, []);
+    const ex = registry.getExercise(activeExerciseId);
+    ex.reset();
+    setTelemetry((prev) => ({
+      ...prev,
+      reps: 0,
+      stage: 'INACTIVE',
+      form_warning: '',
+      form_score: 100.0
+    }));
+  }, [activeExerciseId]);
 
   const requestSummary = useCallback((callback) => {
-    wsService.requestSummary(callback);
-  }, []);
+    const ex = registry.getExercise(activeExerciseId);
+    if (callback) {
+      callback(ex.getSummary());
+    }
+  }, [activeExerciseId]);
 
   return {
     videoRef,
     canvasRef,
     cameraActive,
-    connectionStatus,
+    connectionStatus: detectorReady ? 'CONNECTED' : 'CONNECTING',
     telemetry,
     resetCounter,
     requestSummary

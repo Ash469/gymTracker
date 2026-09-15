@@ -1,0 +1,131 @@
+import { EXERCISES_DATA } from "../api";
+
+/**
+ * Base class for all Client-Side Exercise State Machines.
+ */
+export class BaseExercise {
+  constructor(id, name, description, targetJoint) {
+    this.id = id;
+    this.name = name;
+    this.description = description;
+    this.targetJoint = targetJoint;
+
+    this.reps = 0;
+    this.stage = "INACTIVE";
+    this.feedback = "Position yourself in camera view";
+    this.form_warning = "";
+    this.form_score = 100.0;
+    this.scores = [];
+    this.repHistory = [];
+    this.startTime = Date.now();
+    this.is_active = true;
+    this.angle = 0;
+  }
+
+  /**
+   * Reset exercise state counter.
+   */
+  reset() {
+    this.reps = 0;
+    this.stage = "INACTIVE";
+    this.feedback = "Position yourself in camera view";
+    this.form_warning = "";
+    this.form_score = 100.0;
+    this.scores = [];
+    this.repHistory = [];
+    this.startTime = Date.now();
+    this.is_active = true;
+    this.angle = 0;
+  }
+
+  /**
+   * Calculate 2D angle between three points (A, B, C) where B is the vertex.
+   * @param {Array<number>} a - [x, y]
+   * @param {Array<number>} b - [x, y] vertex
+   * @param {Array<number>} c - [x, y]
+   * @returns {number} Angle in degrees (0 - 180)
+   */
+  calculateAngle(a, b, c) {
+    if (!a || !b || !c) return 0;
+    const radians = Math.atan2(c[1] - b[1], c[0] - b[0]) - Math.atan2(a[1] - b[1], a[0] - b[0]);
+    let angle = Math.abs((radians * 180.0) / Math.PI);
+    if (angle > 180.0) {
+      angle = 360.0 - angle;
+    }
+    return angle;
+  }
+
+  /**
+   * Calculate 2D Euclidean distance between two points A and B.
+   */
+  calculateDistance(a, b) {
+    if (!a || !b) return 0;
+    return Math.hypot(a[0] - b[0], a[1] - b[1]);
+  }
+
+  /**
+   * Record rep score and calculate running average & history.
+   */
+  addScore(score = 95.0) {
+    this.logRep(score);
+  }
+
+  logRep(score = 95.0) {
+    const clamped = Math.max(50.0, Math.min(100.0, score));
+    this.scores.push(clamped);
+    this.form_score = Number(
+      (this.scores.reduce((sum, s) => sum + s, 0) / this.scores.length).toFixed(1)
+    );
+    this.repHistory.push({
+      rep: this.reps,
+      quality: clamped >= 85 ? "Good" : "Needs Work",
+      score: Math.round(clamped),
+    });
+  }
+
+  /**
+   * Overridden by exercise subclasses.
+   */
+  process(landmarks) {
+    return {
+      reps: this.reps,
+      stage: this.stage,
+      angle: this.angle,
+      feedback: this.feedback,
+      active: this.is_active,
+      warning: this.form_warning,
+      form_score: this.form_score,
+    };
+  }
+
+  getDetails() {
+    return {
+      id: this.id,
+      name: this.name,
+      description: this.description,
+      target_joint: this.targetJoint,
+    };
+  }
+
+  getSummary() {
+    const elapsedSecs = this.startTime ? Math.max(1, Math.round((Date.now() - this.startTime) / 1000)) : 0;
+    const calories = Math.round(this.reps * 0.45);
+    const exerciseMeta = EXERCISES_DATA[this.id] || {};
+
+    return {
+      id: this.id,
+      exercise_id: this.id,
+      name: exerciseMeta.name || this.name,
+      exercise_name: exerciseMeta.name || this.name,
+      reps: this.reps,
+      form_score: Math.round(this.form_score),
+      avg_score: Math.round(this.form_score),
+      best_score: this.scores.length > 0 ? Math.max(...this.scores) : 100.0,
+      lowest_score: this.scores.length > 0 ? Math.min(...this.scores) : 100.0,
+      duration_seconds: elapsedSecs,
+      calories_burned: calories,
+      target_muscles: exerciseMeta.target_muscles || [this.targetJoint],
+      rep_history: this.repHistory || [],
+    };
+  }
+}

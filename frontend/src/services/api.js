@@ -6,7 +6,7 @@ import single_arm_dumbbell_row from '../exercises/single_arm_dumbbell_row';
 import squat from '../exercises/squat';
 import russian_twist from '../exercises/russian_twist';
 import lateral_raise from '../exercises/lateral_raise';
-import { wsService } from './websocket';
+import { registry } from './exercises/registry';
 
 export const EXERCISES_DATA = {
   bicep_curl,
@@ -24,17 +24,17 @@ export const EXERCISES_LIST = Object.values(EXERCISES_DATA);
 export async function fetchExercises() {
   return {
     exercises: EXERCISES_LIST,
-    active_exercise_id: "bicep_curl"
+    active_exercise_id: "shoulder_press"
   };
 }
 
 export async function fetchExerciseDetails(id) {
-  return EXERCISES_DATA[id] || EXERCISES_DATA["bicep_curl"];
+  return EXERCISES_DATA[id] || EXERCISES_DATA["shoulder_press"];
 }
 
 export async function selectExercise(id) {
-  wsService.selectExercise(id);
-  return { status: "success", exercise_id: id };
+  const ex = registry.getExercise(id);
+  return { status: "success", exercise: ex.getDetails() };
 }
 
 export async function fetchTelemetry() {
@@ -49,25 +49,13 @@ export async function fetchTelemetry() {
   };
 }
 
-export async function resetTracker() {
-  wsService.resetCounter();
+export async function resetTracker(id = "shoulder_press") {
+  const ex = registry.getExercise(id);
+  ex.reset();
   return { status: "reset", reps: 0 };
 }
 
-export async function fetchSummary() {
-  return new Promise((resolve) => {
-    wsService.requestSummary((data) => {
-      resolve(data || {
-        id: "bicep_curl",
-        name: "Bicep Curl",
-        category: "Biceps",
-        reps: 0,
-        form_score: 100.0,
-        duration_seconds: 0,
-        calories_burned: 0,
-        target_muscles: ["Biceps Brachii"],
-        rep_history: []
-      });
-    });
-  });
+export async function fetchSummary(id = "shoulder_press") {
+  const ex = registry.getExercise(id);
+  return ex.getSummary();
 }

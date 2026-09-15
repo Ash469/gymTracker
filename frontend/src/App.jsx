@@ -8,7 +8,8 @@ import {
   fetchExercises,
   fetchExerciseDetails,
   selectExercise,
-  fetchSummary
+  fetchSummary,
+  resetTracker
 } from './services/api';
 
 // Helper to parse current window location URL pathname into structured route object
@@ -83,6 +84,7 @@ export default function App() {
 
   const handleStartWorkout = () => {
     if (route.exerciseId) {
+      resetTracker(route.exerciseId);
       navigate(`/exercise/${route.exerciseId}/track`);
     }
   };
@@ -96,7 +98,7 @@ export default function App() {
         navigate('/');
       }
     } else {
-      fetchSummary().then(data => {
+      fetchSummary(route.exerciseId).then(data => {
         setSummary(data);
         if (route.exerciseId) {
           navigate(`/exercise/${route.exerciseId}/summary`);
