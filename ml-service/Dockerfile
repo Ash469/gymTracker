@@ -3,6 +3,7 @@ FROM python:3.10-slim
 # Install system dependencies required by OpenCV and MediaPipe
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libgl1 \
+    libegl1 \
     libglib2.0-0 \
     libsm6 \
     libxext6 \
