@@ -37,30 +37,22 @@ class RepTracker:
                     self.feedback = "TRACKING ACTIVE! BEGIN REPS"
                     self.hold_start_time = None
                 else:
-                    # Timer is now baked directly into the feedback text!
                     self.feedback = f"HOLD STILL TO START: {remaining:.1f}s"
             else:
                 self.hold_start_time = None
                 self.feedback = "EXTEND ARM STRAIGHT (>155 deg) TO START"
             
-            # Returning EXACTLY 5 variables
             return self.counter, "INACTIVE", angle, self.feedback, self.active
 
         # --- 2. STRICT REP COUNTING & FORM LOGIC ---
-
-        # DOWN STATE (Target 90 degrees: valid range 80 - 105)
         if 80 <= angle <= 105:
             self.stage = "DOWN"
             self.has_reached_down = True
             self.feedback = "PERFECT 90 DEG! NOW PUSH UP"
-
-        # OVER-EXTENSION (Going too low < 80 degrees)
         elif angle < 80:
             self.stage = "DOWN"
             self.has_reached_down = True
             self.feedback = "DON'T GO DOWN MORE!"
-
-        # UP STATE (Returning to straight arm > 160 degrees)
         elif angle > 160:
             if self.stage == "DOWN" and self.has_reached_down:
                 self.counter += 1
@@ -70,5 +62,4 @@ class RepTracker:
                 self.feedback = "START REP (GO DOWN)"
             self.stage = "UP"
 
-        # Returning EXACTLY 5 variables
         return self.counter, self.stage, angle, self.feedback, self.active

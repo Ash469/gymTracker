@@ -1,4 +1,4 @@
-from src.exercises.base_exercise import BaseExercise
+from src.exercises.registry import registry
 from src.exercises.bicep_curl import BicepCurl
 from src.exercises.shoulder_press import ShoulderPress
 from src.exercises.tricep_extension import TricepExtension
@@ -7,10 +7,9 @@ from src.exercises.squat import Squat
 from src.exercises.dumbbell_bench_press import DumbbellBenchPress
 from src.exercises.single_arm_dumbbell_row import SingleArmDumbbellRow
 from src.exercises.russian_twist import DumbbellRussianTwist
-from src.exercises.registry import registry
 
 __all__ = [
-    "BaseExercise",
+    "registry",
     "BicepCurl",
     "ShoulderPress",
     "TricepExtension",
@@ -18,6 +17,5 @@ __all__ = [
     "Squat",
     "DumbbellBenchPress",
     "SingleArmDumbbellRow",
-    "DumbbellRussianTwist",
-    "registry"
+    "DumbbellRussianTwist"
 ]

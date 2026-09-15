@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: formfit-ml-engine
+    env: docker
+    plan: free
+    dockerfilePath: ./ml-service/Dockerfile
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: HOST
+        value: 0.0.0.0

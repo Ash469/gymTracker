@@ -95,3 +95,16 @@ class PoseDetector:
                     landmark_list.append([id, cx, cy])
 
         return landmark_list
+
+    def get_normalized_position(self, img=None):
+        norm_list = []
+        if self.use_tasks_api:
+            if self.results and self.results.pose_landmarks and len(self.results.pose_landmarks) > 0:
+                for id, lm in enumerate(self.results.pose_landmarks[0]):
+                    norm_list.append([id, round(float(lm.x), 4), round(float(lm.y), 4)])
+        else:
+            if self.results and self.results.pose_landmarks:
+                for id, lm in enumerate(self.results.pose_landmarks.landmark):
+                    norm_list.append([id, round(float(lm.x), 4), round(float(lm.y), 4)])
+
+        return norm_list
