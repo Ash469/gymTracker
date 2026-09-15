@@ -43,6 +43,12 @@ def decode_base64_image(base64_str: str) -> np.ndarray:
     frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
     return frame
 
+try:
+    from websockets.http11 import Response as WSResponse, Headers as WSHeaders
+except ImportError:
+    WSResponse = None
+    WSHeaders = None
+
 async def process_http_request(*args, **kwargs):
     """Universal HTTP request processor compatible with all websockets library versions."""
     global active_exercise_id, current_exercise
@@ -129,7 +135,7 @@ async def process_http_request(*args, **kwargs):
         ("Content-Length", str(len(body))),
         ("Connection", "close"),
         ("Access-Control-Allow-Origin", "*"),
-        ("Access-Control-Allow-Methods", "GET, POST, OPTIONS"),
+        ("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD"),
         ("Access-Control-Allow-Headers", "Content-Type")
     ]
 
@@ -137,7 +143,19 @@ async def process_http_request(*args, **kwargs):
     if req_obj and hasattr(req_obj, 'respond'):
         return req_obj.respond(status, cors_headers, body)
 
-    # Legacy tuple return for websockets v10-12
+    # Return WSResponse for websockets v13+ if available
+    if WSResponse is not None:
+        try:
+            return WSResponse(
+                status_code=int(status),
+                reason_phrase="OK" if status == HTTPStatus.OK else "Not Found",
+                headers=WSHeaders(cors_headers),
+                body=body
+            )
+        except Exception:
+            pass
+
+    # Tuple return for websockets v10-12
     return (status, cors_headers, body)
 
 async def handle_websocket(websocket, path=None):
