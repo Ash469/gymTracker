@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import SelectionPage from './pages/SelectionPage';
 import TutorialPage from './pages/TutorialPage';
@@ -8,8 +8,6 @@ import {
   fetchExercises,
   fetchExerciseDetails,
   selectExercise,
-  fetchTelemetry,
-  resetTracker,
   fetchSummary
 } from './services/api';
 
@@ -37,9 +35,6 @@ export default function App() {
   const [route, setRoute] = useState(() => parseLocationPath(window.location.pathname));
   const [exercises, setExercises] = useState([]);
   const [selectedExercise, setSelectedExercise] = useState(null);
-  const [telemetry, setTelemetry] = useState({
-    reps: 0, stage: 'INACTIVE', angle: 0, feedback: '', active: false, form_warning: '', form_score: 100
-  });
   const [summary, setSummary] = useState(null);
 
   // Navigation router function with HTML5 History API
@@ -75,24 +70,11 @@ export default function App() {
       .then(data => setSelectedExercise(data))
       .catch(err => console.error(`Error loading exercise ${route.exerciseId}:`, err));
 
-    // When navigating to live tracker route /exercise/:id/track, initialize ONLY that exercise model on backend
+    // When navigating to live tracker route /exercise/:id/track, select exercise model
     if (route.view === 'track') {
-      selectExercise(route.exerciseId).catch(err => console.error("Error initializing model on backend:", err));
+      selectExercise(route.exerciseId).catch(err => console.error("Error initializing model:", err));
     }
   }, [route.view, route.exerciseId]);
-
-  // Telemetry Polling (Active ONLY on /exercise/:id/track route)
-  useEffect(() => {
-    if (route.view !== 'track') return;
-
-    const interval = setInterval(() => {
-      fetchTelemetry()
-        .then(data => setTelemetry(data))
-        .catch(() => {});
-    }, 200);
-
-    return () => clearInterval(interval);
-  }, [route.view]);
 
   // Handlers
   const handleSelectExercise = (exerciseId) => {
@@ -105,19 +87,24 @@ export default function App() {
     }
   };
 
-  const handleResetCounter = () => {
-    resetTracker();
-  };
-
-  const handleFinishWorkout = () => {
-    fetchSummary().then(data => {
-      setSummary(data);
+  const handleFinishWorkout = (summaryData) => {
+    if (summaryData) {
+      setSummary(summaryData);
       if (route.exerciseId) {
         navigate(`/exercise/${route.exerciseId}/summary`);
       } else {
         navigate('/');
       }
-    });
+    } else {
+      fetchSummary().then(data => {
+        setSummary(data);
+        if (route.exerciseId) {
+          navigate(`/exercise/${route.exerciseId}/summary`);
+        } else {
+          navigate('/');
+        }
+      });
+    }
   };
 
   return (
@@ -143,8 +130,6 @@ export default function App() {
         {route.view === 'track' && (
           <TrackerPage
             exercise={selectedExercise}
-            telemetry={telemetry}
-            onReset={handleResetCounter}
             onFinishWorkout={handleFinishWorkout}
             onSwitchExercise={() => navigate('/')}
           />
