@@ -4,6 +4,7 @@ services:
     env: docker
     plan: free
     dockerfilePath: ./ml-service/Dockerfile
+    dockerContext: ./ml-service
     healthCheckPath: /health
     envVars:
       - key: PORT
