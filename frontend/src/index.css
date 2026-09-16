@@ -1,45 +1,107 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html {
+  scroll-behavior: smooth;
+}
 
 :root {
   color-scheme: light;
 }
 
 body {
-  background-color: #ffffff;
-  color: #18181b;
+  background-color: #faf8f5;
+  color: #1c1917;
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
   min-height: 100vh;
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .font-serif-claude {
   font-family: 'Newsreader', Georgia, serif;
 }
 
+@keyframes floatSlow {
+  0%, 100% { transform: translateY(0px) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(1.5deg); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(1.1); }
+}
+
+@keyframes orbitSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-float {
+  animation: floatSlow 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: floatSlow 7s ease-in-out 2s infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+.animate-orbit {
+  animation: orbitSpin 20s linear infinite;
+}
+
 @layer utilities {
   .claude-card {
     background-color: #ffffff;
-    border: 1px solid #e4e4e7;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+    border: 1px solid #e6e2dc;
+    box-shadow: 0 1px 3px 0 rgba(28, 25, 23, 0.03), 0 1px 2px -1px rgba(28, 25, 23, 0.02);
   }
 
   .claude-card-hover {
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .claude-card-hover:hover {
     background-color: #ffffff;
-    border-color: #d4d4d8;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-    transform: translateY(-1px);
+    border-color: #d6d0c4;
+    box-shadow: 0 12px 28px -4px rgba(28, 25, 23, 0.08);
+    transform: translateY(-4px);
+  }
+
+  .smooth-press {
+    transition: transform 0.15s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.15s ease, border-color 0.15s ease;
+  }
+  
+  .smooth-press:active {
+    transform: scale(0.97);
+  }
+
+  /* Solid dark backdrop without gradients */
+  .dark-mesh-bg {
+    background-color: #1c1917;
+    background-image: radial-gradient(#2c2825 1px, transparent 1px);
+    background-size: 16px 16px;
+  }
+
+  /* Light dot grid background */
+  .light-dot-bg {
+    background-image: radial-gradient(#e6e2dc 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 }
 
-/* Custom Minimal Scrollbars */
+*:focus-visible {
+  outline: 2px solid #da7756;
+  outline-offset: 2px;
+}
+
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -48,9 +110,13 @@ body {
   background: #faf8f5;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: #d6d0c4;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: #a8a090;
 }
+
+
+
+

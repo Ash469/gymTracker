@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 import SelectionPage from './pages/SelectionPage';
 import TutorialPage from './pages/TutorialPage';
 import TrackerPage from './pages/TrackerPage';
@@ -110,7 +111,7 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-white text-zinc-900">
+    <div className="min-h-screen flex flex-col bg-zinc-50/50 text-zinc-900">
       <Navbar route={route} navigate={navigate} />
 
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-8 pb-12 flex-1">
@@ -145,6 +146,9 @@ export default function App() {
           />
         )}
       </main>
+
+      <Footer navigate={navigate} />
     </div>
   );
 }
+

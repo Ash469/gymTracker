@@ -4,7 +4,7 @@ import { ConnectionStatus } from '../services/websocket';
 import AngleGauge from '../components/AngleGauge';
 import PostureAlert from '../components/PostureAlert';
 import StopConfirmModal from '../components/StopConfirmModal';
-import { Activity, Camera, RefreshCw, CheckCircle2, ArrowUp, ArrowDown, Sparkles } from 'lucide-react';
+import { Activity, Camera, RefreshCw, CheckCircle2, ArrowUp, ArrowDown, Sparkles, Zap } from 'lucide-react';
 
 export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercise }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -30,32 +30,31 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
   const stage = (telemetry.stage || '').toUpperCase();
   const feedback = telemetry.feedback || 'GET IN POSITION';
 
-  // Helper to derive directional icon & badge style for Camera HUD overlay
   const getDirectionBadge = () => {
     if (feedback.includes('GREAT') || feedback.includes('PERFECT')) {
       return {
-        icon: <Sparkles className="w-5 h-5 text-emerald-400 animate-spin" />,
-        color: 'bg-emerald-950/90 text-emerald-300 border-emerald-500/50',
+        icon: <Sparkles className="w-3.5 h-3.5 text-emerald-300 animate-spin" />,
+        color: 'bg-[#1c1917]/95 text-emerald-300 border-[#059669]',
         label: feedback
       };
     }
     if (stage === 'DOWN' || feedback.includes('PRESS') || feedback.includes('UP')) {
       return {
-        icon: <ArrowUp className="w-5 h-5 text-emerald-400 animate-bounce" />,
-        color: 'bg-zinc-900/90 text-white border-emerald-500/50',
+        icon: <ArrowUp className="w-3.5 h-3.5 text-emerald-400 animate-bounce" />,
+        color: 'bg-[#1c1917]/95 text-white border-[#44403c]',
         label: feedback
       };
     }
     if (stage === 'UP' || feedback.includes('LOWER') || feedback.includes('DOWN')) {
       return {
-        icon: <ArrowDown className="w-5 h-5 text-amber-400 animate-bounce" />,
-        color: 'bg-zinc-900/90 text-white border-amber-500/50',
+        icon: <ArrowDown className="w-3.5 h-3.5 text-[#da7756] animate-bounce" />,
+        color: 'bg-[#1c1917]/95 text-white border-[#44403c]',
         label: feedback
       };
     }
     return {
-      icon: <Activity className="w-5 h-5 text-sky-400" />,
-      color: 'bg-zinc-900/90 text-zinc-100 border-zinc-700/50',
+      icon: <Activity className="w-3.5 h-3.5 text-sky-400" />,
+      color: 'bg-[#1c1917]/95 text-zinc-100 border-[#44403c]',
       label: feedback
     };
   };
@@ -63,8 +62,7 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
   const directionBadge = getDirectionBadge();
 
   return (
-    <div className="space-y-5 pb-16 pt-2">
-      {/* Hidden background video element for getUserMedia camera stream */}
+    <div className="space-y-4 pb-12 pt-1">
       <video
         ref={videoRef}
         className="hidden"
@@ -73,201 +71,182 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
         autoPlay
       />
 
-      {/* Top Header & Action Controls Bar */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 pb-3 border-b border-zinc-200">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded-xl bg-zinc-900 text-white shadow-sm">
-            <Activity className="w-5 h-5 text-emerald-400" />
+      <div className="flex flex-row justify-between items-center gap-2 pb-3 border-b border-[#e6e2dc]">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="p-2 rounded-xl bg-[#1c1917] text-white shrink-0">
+            <Zap className="w-4 h-4 text-[#da7756]" />
           </div>
 
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="text-xl font-bold text-zinc-900 tracking-tight">
-                {exercise ? exercise.name : 'Exercise Pose Tracker'}
-              </h2>
-
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200">
+              <h1 className="text-base sm:text-lg font-bold text-[#1c1917] tracking-tight truncate">
+                {exercise ? exercise.name : 'Pose Tracker'}
+              </h1>
+              <span className="hidden sm:inline-block text-[9px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[#f6eee9] text-[#c86343] border border-[#e6d4c9]">
                 {exercise?.category || 'General'}
               </span>
             </div>
 
-            {/* Connection Status Badge */}
-            <div className="flex items-center gap-2 mt-0.5">
+            <div className="flex items-center gap-1.5 mt-0.5">
               {connectionStatus === ConnectionStatus.CONNECTED ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-emerald-700">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  Real-Time AI Engine Connected
-                </span>
-              ) : connectionStatus === ConnectionStatus.CONNECTING ? (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-amber-700">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
-                  Connecting ML Engine...
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#059669]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#059669] animate-pulse" />
+                  AI Vision Connected
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-rose-700">
-                  <span className="w-2 h-2 rounded-full bg-rose-500" />
-                  Reconnecting...
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold text-[#d97706]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[#d97706] animate-ping" />
+                  Connecting ML...
                 </span>
               )}
             </div>
           </div>
         </div>
 
-        {/* Header Action Buttons */}
-        <div className="flex items-center gap-2 flex-wrap w-full md:w-auto">
-          <button
-            onClick={onSwitchExercise}
-            className="text-xs font-semibold text-zinc-700 hover:text-zinc-900 border border-zinc-200 px-3.5 py-2 rounded-xl bg-white shadow-sm transition-all hover:bg-zinc-50"
-          >
-            Switch Exercise
-          </button>
-
+        <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={resetCounter}
-            className="flex items-center gap-1.5 text-xs font-semibold text-zinc-700 hover:text-zinc-900 border border-zinc-200 px-3.5 py-2 rounded-xl bg-white shadow-sm transition-all hover:bg-zinc-50"
+            className="flex items-center gap-1 text-xs font-semibold text-[#1c1917] border border-[#e6e2dc] px-3 py-1.5 rounded-xl bg-white transition-all smooth-press hover:bg-[#faf8f5]"
           >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Reset
+            <RefreshCw className="w-3.5 h-3.5 text-[#78716c]" />
+            <span className="hidden sm:inline">Reset</span>
           </button>
 
           <button
             onClick={() => setShowConfirmModal(true)}
-            className="flex items-center gap-1.5 text-xs font-bold text-white bg-zinc-900 hover:bg-zinc-800 px-4 py-2 rounded-xl shadow-md transition-all hover:scale-[1.02]"
+            className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#1c1917] hover:bg-[#2c2825] px-3.5 py-1.5 rounded-xl transition-all smooth-press"
           >
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-            Finish Set →
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#da7756]" />
+            Finish Set
           </button>
         </div>
       </div>
 
-      {/* Main Workspace Layout (2-Column Grid: Camera Container on Left, Telemetry Stats on Right) */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         
-        {/* LEFT SIDE: Camera Container with Embedded In-View Direction Cues & Posture Warning */}
-        <div className="lg:col-span-7 xl:col-span-8 space-y-3">
-          <div className="relative rounded-2xl overflow-hidden bg-zinc-950 aspect-[4/3] w-full border border-zinc-800 shadow-2xl flex items-center justify-center group">
+        <div className="lg:col-span-7 xl:col-span-8 space-y-2">
+          <div className="relative rounded-2xl overflow-hidden bg-[#1c1917] border border-[#2c2825] shadow-lg flex items-center justify-center h-[55vh] sm:h-[62vh] lg:h-auto lg:aspect-[4/3] w-full group">
             
-            {/* Real-Time Mirrored HTML5 Canvas displaying Camera Feed + Skeleton Mesh */}
             <canvas
               ref={canvasRef}
               className="w-full h-full object-cover"
             />
 
-            {/* 1. TOP HUD BAR (Live Tracking & Angle Display over Camera) */}
-            <div className="absolute top-4 left-4 right-4 flex justify-between items-center z-20 pointer-events-none">
-              <div className="bg-zinc-900/85 backdrop-blur-md px-3 py-1.5 rounded-xl border border-zinc-700/60 flex items-center gap-2 text-white shadow-lg">
-                <span className={`w-2.5 h-2.5 rounded-full ${telemetry.active ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
-                <span className="text-[11px] font-extrabold uppercase tracking-wider">
-                  {telemetry.active ? 'LIVE POSE TRACKING' : 'GET IN POSITION'}
+            <div className="absolute top-3 left-3 right-3 flex justify-between items-center z-20 pointer-events-none">
+              <div className="bg-[#1c1917]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#44403c] flex items-center gap-1.5 text-white shadow-sm">
+                <span className={`w-2 h-2 rounded-full ${telemetry.active ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400'}`} />
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider">
+                  {telemetry.active ? 'LIVE TRACKING' : 'GET IN POSITION'}
                 </span>
               </div>
 
-              <div className="bg-zinc-900/85 backdrop-blur-md px-3.5 py-1.5 rounded-xl border border-zinc-700/60 text-emerald-400 font-mono text-xs font-bold shadow-lg">
-                ANGLE: {telemetry.angle}°
+              <div className="bg-[#1c1917]/90 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#44403c] text-emerald-400 font-mono text-xs font-bold shadow-sm">
+                {telemetry.angle}° ANGLE
               </div>
             </div>
 
-            {/* 2. IN-CAMERA DIRECTION & CUE BANNER (Floating at Top-Center of Camera View) */}
-            <div className="absolute top-16 left-4 right-4 z-20 pointer-events-none flex justify-center">
-              <div className={`backdrop-blur-md px-4 py-2.5 rounded-2xl border shadow-2xl flex items-center gap-3 transition-all duration-300 pointer-events-auto max-w-md w-full justify-center ${directionBadge.color}`}>
+            <div className="absolute top-12 left-3 right-3 z-20 pointer-events-none flex justify-center">
+              <div className={`backdrop-blur-md px-3 py-1.5 rounded-xl border shadow-md flex items-center gap-2 transition-all duration-300 pointer-events-auto max-w-sm w-full justify-center ${directionBadge.color}`}>
                 {directionBadge.icon}
-                <span className="text-xs font-extrabold uppercase tracking-wide text-center">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-center">
                   {directionBadge.label}
                 </span>
               </div>
             </div>
 
-            {/* Loading Overlay if Camera initialization is in progress */}
             {!cameraActive && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-zinc-950/90 text-white p-6 text-center space-y-3 z-30">
-                <div className="p-3 rounded-2xl bg-zinc-900 border border-zinc-800 shadow-inner">
-                  <Camera className="w-8 h-8 text-amber-400 animate-pulse" />
+              <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#1c1917]/95 text-white p-4 text-center space-y-2 z-30">
+                <div className="p-2.5 rounded-xl bg-[#2c2825] border border-[#44403c]">
+                  <Camera className="w-6 h-6 text-[#da7756] animate-pulse" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold">Accessing Camera Stream...</p>
-                  <p className="text-xs text-zinc-400 mt-1">Please allow webcam access when prompted by browser.</p>
+                  <p className="text-xs sm:text-sm font-bold">Accessing Camera Stream...</p>
+                  <p className="text-[11px] text-[#a8a29e] mt-0.5">Please allow webcam access when prompted by browser.</p>
                 </div>
               </div>
             )}
 
-            {/* 3. POSTURE WARNING POPUP (Anchored over bottom of Camera View) */}
             <PostureAlert warning={telemetry.form_warning} />
           </div>
 
-          <div className="flex justify-between items-center text-xs text-zinc-500 px-1">
-            <span>Look directly at the camera HUD for real-time directional cues (Up, Down, Hold).</span>
-            <span className="font-mono text-[11px] text-zinc-700 font-semibold bg-zinc-100 px-2.5 py-1 rounded-lg border border-zinc-200">
-              FPS: 60 | WS Latency: &lt;15ms
+          <div className="hidden sm:flex justify-between items-center text-[11px] text-[#78716c] px-1">
+            <span>Stand back so full body is visible inside camera frame.</span>
+            <span className="font-mono text-[10px] text-[#1c1917] font-semibold bg-white px-2 py-0.5 rounded border border-[#e6e2dc]">
+              60 FPS | On-Device ML
             </span>
           </div>
         </div>
 
-        {/* RIGHT SIDE: Telemetry, Reps, Accuracy, Stage & Angle Sidebar */}
-        <div className="lg:col-span-5 xl:col-span-4 space-y-4">
+        <div className="lg:col-span-5 xl:col-span-4 space-y-3">
           
-          {/* Big Repetitions Counter Card */}
-          <div className="claude-card rounded-2xl p-6 text-center border border-zinc-200/90 bg-white shadow-sm space-y-2">
-            <span className="text-[11px] font-bold text-zinc-500 uppercase tracking-widest block">
-              REPETITIONS COUNTED
-            </span>
+          <div className="claude-card rounded-xl p-3 sm:p-4 border border-[#e6e2dc] bg-white shadow-2xs space-y-3">
             
-            <div className="text-7xl font-mono font-extrabold text-zinc-900 tracking-tight my-1">
-              {telemetry.reps}
-            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div className="bg-[#faf8f5] border border-[#e6e2dc] p-2.5 rounded-xl text-center space-y-0.5">
+                <span className="text-[8px] font-mono font-bold text-[#78716c] uppercase tracking-wider block">
+                  REPS
+                </span>
+                <div className="text-3xl font-mono font-bold text-[#1c1917]">
+                  {telemetry.reps}
+                </div>
+              </div>
 
-            <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              AUTO LOGGED REPS
-            </span>
-          </div>
+              <div className="bg-[#faf8f5] border border-[#e6e2dc] p-2.5 rounded-xl text-center space-y-0.5">
+                <span className="text-[8px] font-mono font-bold text-[#78716c] uppercase tracking-wider block">
+                  STAGE
+                </span>
+                <div className="text-sm font-mono font-bold text-[#059669] truncate pt-1">
+                  {telemetry.stage}
+                </div>
+              </div>
 
-          {/* Grid: Movement Stage & Form Accuracy Score */}
-          <div className="grid grid-cols-2 gap-4">
-            
-            {/* Current Movement Stage Badge */}
-            <div className="claude-card rounded-2xl p-4 border border-zinc-200/90 bg-white shadow-sm space-y-1">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
-                STAGE
-              </span>
-              <div className="text-xl font-mono font-bold text-emerald-600 truncate">
-                {telemetry.stage}
+              <div className="bg-[#faf8f5] border border-[#e6e2dc] p-2.5 rounded-xl text-center space-y-0.5">
+                <span className="text-[8px] font-mono font-bold text-[#78716c] uppercase tracking-wider block">
+                  FORM
+                </span>
+                <div className="text-base font-mono font-bold text-[#1c1917] pt-0.5">
+                  {telemetry.form_score}%
+                </div>
               </div>
             </div>
 
-            {/* Form Accuracy % Score */}
-            <div className="claude-card rounded-2xl p-4 border border-zinc-200/90 bg-white shadow-sm space-y-1">
-              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-wider block">
-                FORM ACCURACY
-              </span>
-              <div className="text-xl font-mono font-bold text-zinc-900">
-                {telemetry.form_score}%
+            <div className={`rounded-lg p-2.5 border text-xs font-semibold ${
+              isWarning
+                ? 'border-[#ffe4e6] bg-[#ffe4e6]/50 text-[#e11d48]'
+                : 'border-[#f6eee9] bg-[#f6eee9]/60 text-[#c86343]'
+            }`}>
+              <div className="flex items-center justify-between">
+                <span className="text-[9px] font-mono uppercase tracking-wider opacity-75">Guidance</span>
+                <span className="text-[10px] font-mono font-bold">{telemetry.angle}° Angle</span>
               </div>
+              <p className="mt-0.5 text-xs font-bold truncate">
+                {telemetry.form_warning || telemetry.feedback || 'Stand in starting position'}
+              </p>
             </div>
-          </div>
 
-          {/* Form Guidance Status Box */}
-          <div className={`claude-card rounded-2xl p-4 border transition-colors ${
-            isWarning
-              ? 'border-rose-300 bg-rose-50/60 text-rose-900'
-              : 'border-amber-200/80 bg-amber-50/50 text-amber-900'
-          }`}>
-            <span className="text-[10px] font-bold uppercase tracking-wider block opacity-70">
-              Form Guidance Status
-            </span>
-            <p className="text-xs font-bold mt-1 min-h-[36px] flex items-center">
-              {telemetry.form_warning || telemetry.feedback || 'Stand in starting position'}
-            </p>
-          </div>
-
-          {/* Joint Angle Telemetry Gauge */}
-          <div className="claude-card rounded-2xl p-5 border border-zinc-200/90 bg-white shadow-sm">
             <AngleGauge angle={telemetry.angle} />
+
+            <div className="flex gap-2 pt-1 lg:hidden">
+              <button
+                onClick={onSwitchExercise}
+                className="flex-1 py-2 rounded-lg border border-[#e6e2dc] text-xs font-bold text-[#78716c] hover:text-[#1c1917] bg-white transition-all smooth-press"
+              >
+                Switch Exercise
+              </button>
+              <button
+                onClick={() => setShowConfirmModal(true)}
+                className="flex-1 py-2 rounded-lg bg-[#1c1917] text-xs font-bold text-white transition-all smooth-press"
+              >
+                Finish Set →
+              </button>
+            </div>
+
           </div>
+
         </div>
 
       </div>
 
-      {/* Stop & Save Confirmation Modal */}
       <StopConfirmModal
         isOpen={showConfirmModal}
         onClose={() => setShowConfirmModal(false)}
@@ -276,3 +255,5 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
     </div>
   );
 }
+
+
