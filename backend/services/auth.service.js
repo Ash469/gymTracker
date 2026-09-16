@@ -1,6 +1,6 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
-const prisma = require('../db');
+const { query } = require('../db');
 
 const SALT_ROUNDS = 12;
 
@@ -29,8 +29,8 @@ function sanitizeUser(user) {
  */
 async function register({ email, password, name, fitnessLevel, primaryGoal, workoutFrequency }) {
   // Check for existing user
-  const existing = await prisma.user.findUnique({ where: { email } });
-  if (existing) {
+  const existing = await query('SELECT id FROM users WHERE email = $1', [email]);
+  if (existing.rows.length > 0) {
     const err = new Error('A user with this email already exists.');
     err.statusCode = 409;
     throw err;
@@ -38,17 +38,21 @@ async function register({ email, password, name, fitnessLevel, primaryGoal, work
 
   const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
-  const user = await prisma.user.create({
-    data: {
+  const res = await query(
+    `INSERT INTO users (email, name, "passwordHash", "fitnessLevel", "primaryGoal", "workoutFrequency")
+     VALUES ($1, $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
       email,
-      passwordHash: hashedPassword,
       name,
-      fitnessLevel: fitnessLevel || null,
-      primaryGoal: primaryGoal || null,
-      workoutFrequency: workoutFrequency || null,
-    },
-  });
+      hashedPassword,
+      fitnessLevel || null,
+      primaryGoal || null,
+      workoutFrequency || null,
+    ]
+  );
 
+  const user = res.rows[0];
   const token = generateToken(user);
   return { user: sanitizeUser(user), token };
 }
@@ -58,13 +62,14 @@ async function register({ email, password, name, fitnessLevel, primaryGoal, work
  * @returns {{ user, token }}
  */
 async function login({ email, password }) {
-  const user = await prisma.user.findUnique({ where: { email } });
-  if (!user) {
+  const res = await query('SELECT * FROM users WHERE email = $1', [email]);
+  if (res.rows.length === 0) {
     const err = new Error('Invalid email or password.');
     err.statusCode = 401;
     throw err;
   }
 
+  const user = res.rows[0];
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     const err = new Error('Invalid email or password.');
@@ -80,13 +85,14 @@ async function login({ email, password }) {
  * Get the authenticated user's profile.
  */
 async function getProfile(userId) {
-  const user = await prisma.user.findUnique({ where: { id: userId } });
-  if (!user) {
+  const res = await query('SELECT * FROM users WHERE id = $1', [userId]);
+  if (res.rows.length === 0) {
     const err = new Error('User not found.');
     err.statusCode = 404;
     throw err;
   }
-  return sanitizeUser(user);
+
+  return sanitizeUser(res.rows[0]);
 }
 
 module.exports = { register, login, getProfile };

@@ -1,4 +1,4 @@
-const prisma = require('../db');
+const { query } = require('../db');
 
 /**
  * Get overall progress for a user.
@@ -6,57 +6,84 @@ const prisma = require('../db');
  */
 async function getOverallProgress(userId) {
   // Total workout count
-  const totalWorkouts = await prisma.workout.count({
-    where: { userId, status: 'COMPLETED' },
-  });
+  const countRes = await query(
+    'SELECT COUNT(*)::int as count FROM workouts WHERE "userId" = $1 AND status = \'COMPLETED\'',
+    [userId]
+  );
+  const totalWorkouts = countRes.rows[0]?.count || 0;
 
-  // Average overall score across completed workouts
-  const scoreAgg = await prisma.workout.aggregate({
-    where: { userId, status: 'COMPLETED', overallScore: { not: null } },
-    _avg: { overallScore: true },
-    _max: { overallScore: true },
-  });
+  // Average and max overall score
+  const scoreRes = await query(
+    `SELECT AVG("overallScore")::float as "averageScore", MAX("overallScore")::float as "bestScore"
+     FROM workouts
+     WHERE "userId" = $1 AND status = 'COMPLETED' AND "overallScore" IS NOT NULL`,
+    [userId]
+  );
+  const averageScore = scoreRes.rows[0]?.averageScore ? Math.round(scoreRes.rows[0].averageScore * 10) / 10 : null;
+  const bestScore = scoreRes.rows[0]?.bestScore != null ? parseFloat(scoreRes.rows[0].bestScore) : null;
 
-  // Recent workouts with scores for trend chart
-  const recentWorkouts = await prisma.workout.findMany({
-    where: { userId, status: 'COMPLETED' },
-    orderBy: { completedAt: 'desc' },
-    take: 20,
-    select: {
-      id: true,
-      overallScore: true,
-      completedAt: true,
-      duration: true,
-      workoutSets: {
-        select: {
-          exercise: { select: { name: true } },
-          reps: true,
-          averageScore: true,
-        },
-      },
-    },
-  });
+  // Recent workouts with sets for trend chart
+  const recentWorkoutsRes = await query(
+    `SELECT id, "overallScore", "completedAt", duration
+     FROM workouts
+     WHERE "userId" = $1 AND status = 'COMPLETED'
+     ORDER BY "completedAt" DESC
+     LIMIT 20`,
+    [userId]
+  );
 
-  // Most common form errors across all sets
-  const topErrors = await prisma.formFeedback.groupBy({
-    by: ['errorType'],
-    where: {
-      workoutSet: { workout: { userId, status: 'COMPLETED' } },
-    },
-    _sum: { occurrenceCount: true },
-    orderBy: { _sum: { occurrenceCount: 'desc' } },
-    take: 5,
-  });
+  const recentWorkouts = recentWorkoutsRes.rows.map((w) => ({
+    id: w.id,
+    overallScore: w.overallScore != null ? parseFloat(w.overallScore) : null,
+    completedAt: w.completedAt,
+    duration: w.duration,
+    workoutSets: [],
+  }));
+
+  if (recentWorkouts.length > 0) {
+    const workoutIds = recentWorkouts.map((w) => w.id);
+    const setsRes = await query(
+      `SELECT ws."workoutId", ws.reps, ws."averageScore", e.name as "exerciseName"
+       FROM workout_sets ws
+       JOIN exercises e ON ws."exerciseId" = e.id
+       WHERE ws."workoutId" = ANY($1::uuid[])`,
+      [workoutIds]
+    );
+
+    const setsByWorkout = {};
+    for (const s of setsRes.rows) {
+      if (!setsByWorkout[s.workoutId]) setsByWorkout[s.workoutId] = [];
+      setsByWorkout[s.workoutId].push({
+        exercise: { name: s.exerciseName },
+        reps: s.reps,
+        averageScore: s.averageScore != null ? parseFloat(s.averageScore) : null,
+      });
+    }
+
+    for (const w of recentWorkouts) {
+      w.workoutSets = setsByWorkout[w.id] || [];
+    }
+  }
+
+  // Top errors across all sets
+  const topErrorsRes = await query(
+    `SELECT ff."errorType", SUM(ff."occurrenceCount")::int as "totalOccurrences"
+     FROM form_feedback ff
+     JOIN workout_sets ws ON ff."setId" = ws.id
+     JOIN workouts w ON ws."workoutId" = w.id
+     WHERE w."userId" = $1 AND w.status = 'COMPLETED'
+     GROUP BY ff."errorType"
+     ORDER BY "totalOccurrences" DESC
+     LIMIT 5`,
+    [userId]
+  );
 
   return {
     totalWorkouts,
-    averageScore: scoreAgg._avg.overallScore,
-    bestScore: scoreAgg._max.overallScore,
+    averageScore,
+    bestScore,
     recentWorkouts,
-    topErrors: topErrors.map((e) => ({
-      errorType: e.errorType,
-      totalOccurrences: e._sum.occurrenceCount,
-    })),
+    topErrors: topErrorsRes.rows,
   };
 }
 
@@ -65,67 +92,70 @@ async function getOverallProgress(userId) {
  */
 async function getExerciseProgress(userId, exerciseId) {
   // All sets for this exercise from completed workouts, ordered by date
-  const sets = await prisma.workoutSet.findMany({
-    where: {
-      exerciseId,
-      workout: { userId, status: 'COMPLETED' },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 50,
-    select: {
-      id: true,
-      setNumber: true,
-      reps: true,
-      averageScore: true,
-      bestScore: true,
-      worstScore: true,
-      duration: true,
-      createdAt: true,
-      formFeedback: {
-        select: {
-          errorType: true,
-          severity: true,
-          occurrenceCount: true,
-        },
-      },
-    },
-  });
+  const setsRes = await query(
+    `SELECT ws.id, ws."setNumber", ws.reps, ws."averageScore", ws."bestScore", ws."worstScore", ws.duration, ws."createdAt"
+     FROM workout_sets ws
+     JOIN workouts w ON ws."workoutId" = w.id
+     WHERE ws."exerciseId" = $1 AND w."userId" = $2 AND w.status = 'COMPLETED'
+     ORDER BY ws."createdAt" DESC
+     LIMIT 50`,
+    [exerciseId, userId]
+  );
+
+  const setIds = setsRes.rows.map((s) => s.id);
+  let feedbackMap = {};
+  if (setIds.length > 0) {
+    const feedbackRes = await query(
+      'SELECT "setId", "errorType", severity, "occurrenceCount" FROM form_feedback WHERE "setId" = ANY($1::uuid[])',
+      [setIds]
+    );
+    for (const fb of feedbackRes.rows) {
+      if (!feedbackMap[fb.setId]) feedbackMap[fb.setId] = [];
+      feedbackMap[fb.setId].push(fb);
+    }
+  }
+
+  const sets = setsRes.rows.map((s) => ({
+    ...s,
+    averageScore: s.averageScore != null ? parseFloat(s.averageScore) : null,
+    bestScore: s.bestScore != null ? parseFloat(s.bestScore) : null,
+    worstScore: s.worstScore != null ? parseFloat(s.worstScore) : null,
+    formFeedback: feedbackMap[s.id] || [],
+  }));
 
   // Aggregate score for this exercise
-  const scoreAgg = await prisma.workoutSet.aggregate({
-    where: {
-      exerciseId,
-      workout: { userId, status: 'COMPLETED' },
-      averageScore: { not: null },
-    },
-    _avg: { averageScore: true },
-    _max: { bestScore: true },
-    _count: true,
-  });
+  const scoreAggRes = await query(
+    `SELECT COUNT(*)::int as "totalSets", AVG("averageScore")::float as "averageScore", MAX("bestScore")::float as "bestScore"
+     FROM workout_sets ws
+     JOIN workouts w ON ws."workoutId" = w.id
+     WHERE ws."exerciseId" = $1 AND w."userId" = $2 AND w.status = 'COMPLETED' AND ws."averageScore" IS NOT NULL`,
+    [exerciseId, userId]
+  );
+
+  const aggRow = scoreAggRes.rows[0];
+  const totalSets = aggRow?.totalSets || 0;
+  const averageScore = aggRow?.averageScore ? Math.round(aggRow.averageScore * 10) / 10 : null;
+  const bestScore = aggRow?.bestScore != null ? parseFloat(aggRow.bestScore) : null;
 
   // Most common errors for this exercise
-  const topErrors = await prisma.formFeedback.groupBy({
-    by: ['errorType'],
-    where: {
-      workoutSet: {
-        exerciseId,
-        workout: { userId, status: 'COMPLETED' },
-      },
-    },
-    _sum: { occurrenceCount: true },
-    orderBy: { _sum: { occurrenceCount: 'desc' } },
-    take: 5,
-  });
+  const topErrorsRes = await query(
+    `SELECT ff."errorType", SUM(ff."occurrenceCount")::int as "totalOccurrences"
+     FROM form_feedback ff
+     JOIN workout_sets ws ON ff."setId" = ws.id
+     JOIN workouts w ON ws."workoutId" = w.id
+     WHERE ws."exerciseId" = $1 AND w."userId" = $2 AND w.status = 'COMPLETED'
+     GROUP BY ff."errorType"
+     ORDER BY "totalOccurrences" DESC
+     LIMIT 5`,
+    [exerciseId, userId]
+  );
 
   return {
-    totalSets: scoreAgg._count,
-    averageScore: scoreAgg._avg.averageScore,
-    bestScore: scoreAgg._max.bestScore,
+    totalSets,
+    averageScore,
+    bestScore,
     sets,
-    topErrors: topErrors.map((e) => ({
-      errorType: e.errorType,
-      totalOccurrences: e._sum.occurrenceCount,
-    })),
+    topErrors: topErrorsRes.rows,
   };
 }
 
