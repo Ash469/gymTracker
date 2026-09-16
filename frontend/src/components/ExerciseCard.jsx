@@ -12,10 +12,10 @@ export default function ExerciseCard({ exercise, onSelect }) {
   return (
     <div
       onClick={() => onSelect(exercise.id)}
-      className="claude-card claude-card-hover rounded-xl p-4 flex flex-col justify-between gap-3 cursor-pointer group border border-[#e6e2dc] smooth-press bg-white"
+      className="rounded-2xl p-4 flex flex-col justify-between gap-4 cursor-pointer group border border-[#E6E0D8] bg-[#FAF7F2] hover:bg-white hover:border-[#D9D3CA] hover:shadow-md transition-all duration-200"
     >
       <div className="space-y-3">
-        <div className="relative aspect-[16/10] w-full bg-[#faf8f5] rounded-lg overflow-hidden border border-[#e6e2dc] flex items-center justify-center">
+        <div className="relative aspect-[16/10] w-full bg-white rounded-xl overflow-hidden border border-[#E6E0D8] flex items-center justify-center p-2">
           {!imgError ? (
             <img
               src={exercise.demo_gif}
@@ -30,26 +30,26 @@ export default function ExerciseCard({ exercise, onSelect }) {
           )}
 
           <div className="absolute top-2 right-2">
-            <span className="text-[9px] font-mono font-bold uppercase bg-white/95 border border-[#e6e2dc] px-2 py-0.5 rounded text-[#1c1917] shadow-2xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider bg-white/95 border border-[#E6E0D8] px-2.5 py-0.5 rounded-full text-[#171513]">
               {exercise.category}
             </span>
           </div>
         </div>
 
         <div className="space-y-1">
-          <h3 className="text-sm font-bold text-[#1c1917] group-hover:text-[#da7756] transition-colors">
+          <h3 className="text-base font-bold text-[#171513] group-hover:text-[#E87552] transition-colors">
             {exercise.name}
           </h3>
-          <p className="text-xs text-[#78716c] line-clamp-2 leading-relaxed">
+          <p className="text-xs text-[#655f58] line-clamp-2 leading-relaxed font-normal">
             {exercise.how_to_perform?.[0] || exercise.description}
           </p>
         </div>
 
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1.5 pt-1">
           {exercise.target_muscles && exercise.target_muscles.map((m, idx) => (
             <span
               key={idx}
-              className="text-[9px] bg-[#f6eee9] text-[#c86343] border border-[#e6d4c9] px-2 py-0.5 rounded font-semibold"
+              className="text-[10px] bg-[#FDF1EB] text-[#D95325] border border-[#F5DDD2] px-2.5 py-0.5 rounded-full font-bold"
             >
               {m}
             </span>
@@ -57,17 +57,15 @@ export default function ExerciseCard({ exercise, onSelect }) {
         </div>
       </div>
 
-      <div className="pt-2.5 border-t border-[#e6e2dc] flex justify-between items-center text-xs">
-        <span className="text-[#78716c] font-mono text-[10px] flex items-center gap-1">
-          <Flame className="w-3 h-3 text-[#da7756]" />
+      <div className="pt-3 border-t border-[#E6E0D8] flex justify-between items-center text-xs">
+        <span className="text-[#655f58] font-mono text-[10px] flex items-center gap-1.5 font-medium">
+          <Flame className="w-3.5 h-3.5 text-[#E87552]" />
           ~{estimatedKcal} kcal/min
         </span>
-        <span className="font-bold text-[#1c1917] group-hover:translate-x-1 group-hover:text-[#da7756] transition-all duration-200 flex items-center gap-1 text-xs">
-          Start guide <ArrowRight className="w-3.5 h-3.5 text-[#78716c] group-hover:text-[#da7756]" />
+        <span className="font-bold text-[#171513] group-hover:translate-x-1 group-hover:text-[#E87552] transition-all duration-200 flex items-center gap-1 text-xs">
+          Start guide <ArrowRight className="w-3.5 h-3.5 text-[#171513] group-hover:text-[#E87552]" />
         </span>
       </div>
     </div>
   );
 }
-
-

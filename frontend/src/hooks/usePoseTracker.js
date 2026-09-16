@@ -123,7 +123,7 @@ export function usePoseTracker(activeExerciseId) {
             connections: POSE_CONNECTIONS
           }));
 
-          // 3. Draw 60 FPS Pose Skeleton Overlay directly onto mirrored canvas
+          // 3. Draw 60 FPS Biomechanical Skeleton HUD directly onto mirrored canvas
           const normLandmarks = detection.normalizedLandmarks;
 
           const getPointCoords = (index) => {
@@ -140,12 +140,10 @@ export function usePoseTracker(activeExerciseId) {
           const totalLandmarks = normLandmarks.length;
           if (totalLandmarks > 0) {
             const isWarning = Boolean(exerciseResult.warning);
-            const lineColor = isWarning ? '#ef4444' : '#10b981'; // Red on warning, emerald when good
-            const nodeColor = '#38bdf8'; // Sky blue joint nodes
+            const defaultLineColor = isWarning ? '#ef4444' : '#10b981'; // Red on warning, emerald when good
 
-            // Draw connecting skeleton lines
-            ctx.strokeStyle = lineColor;
-            ctx.lineWidth = 3;
+            // 1. Draw connecting skeleton lines with anatomical region styling
+            ctx.lineWidth = 2.5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
 
@@ -155,6 +153,18 @@ export function usePoseTracker(activeExerciseId) {
                 const pt2 = getPointCoords(p2);
 
                 if (pt1 && pt2) {
+                  // Color code by anatomical region
+                  if (p1 <= 10 || p2 <= 10) {
+                    ctx.strokeStyle = '#f59e0b'; // Head/Face/Ears - Gold
+                    ctx.lineWidth = 1.5;
+                  } else if (p1 >= 27 || p2 >= 27) {
+                    ctx.strokeStyle = '#E87552'; // Feet/Heels/Toes - Coral
+                    ctx.lineWidth = 2;
+                  } else {
+                    ctx.strokeStyle = defaultLineColor; // Torso & Limbs
+                    ctx.lineWidth = 2.5;
+                  }
+
                   ctx.beginPath();
                   ctx.moveTo(pt1.x, pt1.y);
                   ctx.lineTo(pt2.x, pt2.y);
@@ -163,18 +173,76 @@ export function usePoseTracker(activeExerciseId) {
               }
             });
 
-            // Draw joint circles
+            // 2. Draw spinal posture reference line (Right Shoulder 12 -> Right Hip 24)
+            const rShoulder = getPointCoords(12);
+            const rHip = getPointCoords(24);
+            if (rShoulder && rHip) {
+              ctx.save();
+              ctx.setLineDash([4, 4]);
+              ctx.strokeStyle = isWarning ? '#ef4444' : '#E87552';
+              ctx.lineWidth = 2;
+              ctx.beginPath();
+              ctx.moveTo(rShoulder.x, rShoulder.y);
+              ctx.lineTo(rHip.x, rHip.y);
+              ctx.stroke();
+              ctx.restore();
+            }
+
+            // 3. Draw 33 joint landmark circles
             for (let i = 0; i < totalLandmarks; i++) {
               const pt = getPointCoords(i);
               if (pt) {
+                let nodeColor = '#38bdf8'; // Sky blue default
+                let radius = 3.5;
+
+                if (i === 11 || i === 12 || i === 23 || i === 24 || i === 25 || i === 26) {
+                  nodeColor = '#34c759'; // Core major joints - Emerald
+                  radius = 4.5;
+                } else if (i >= 27) {
+                  nodeColor = '#E87552'; // Feet/Heel balance nodes - Coral
+                  radius = 3.5;
+                } else if (i <= 10) {
+                  nodeColor = '#f59e0b'; // Head/Sensors - Gold
+                  radius = 2.5;
+                }
+
                 ctx.fillStyle = nodeColor;
                 ctx.beginPath();
-                ctx.arc(pt.x, pt.y, 4, 0, 2 * Math.PI);
+                ctx.arc(pt.x, pt.y, radius, 0, 2 * Math.PI);
                 ctx.fill();
                 ctx.strokeStyle = '#ffffff';
-                ctx.lineWidth = 1.5;
+                ctx.lineWidth = 1.2;
                 ctx.stroke();
               }
+            }
+
+            // Draw Live Angle Overlay Badge on Key Joint (Right Knee 26 or Right Elbow 14)
+            const keyJointIndex = activeExerciseId?.includes('press') || activeExerciseId?.includes('curl') ? 14 : 26;
+            const targetJointPt = getPointCoords(keyJointIndex);
+            if (targetJointPt && exerciseResult.angle > 0) {
+              const text = `${Math.round(exerciseResult.angle)}°`;
+              ctx.font = 'bold 13px Inter, sans-serif';
+              const textWidth = ctx.measureText(text).width;
+              
+              const badgeX = targetJointPt.x + 12;
+              const badgeY = targetJointPt.y - 10;
+              const paddingX = 8;
+              const paddingY = 4;
+              
+              // Badge background
+              ctx.fillStyle = isWarning ? 'rgba(239, 68, 68, 0.92)' : 'rgba(23, 21, 19, 0.88)';
+              ctx.beginPath();
+              ctx.roundRect(badgeX, badgeY - 14, textWidth + paddingX * 2, 22, 6);
+              ctx.fill();
+              
+              // Badge border
+              ctx.strokeStyle = isWarning ? '#fca5a5' : '#E87552';
+              ctx.lineWidth = 1;
+              ctx.stroke();
+              
+              // Angle text
+              ctx.fillStyle = '#ffffff';
+              ctx.fillText(text, badgeX + paddingX, badgeY + 2);
             }
           }
         }

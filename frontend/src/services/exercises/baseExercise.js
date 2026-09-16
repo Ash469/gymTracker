@@ -52,7 +52,49 @@ export class BaseExercise {
     if (angle > 180.0) {
       angle = 360.0 - angle;
     }
-    return angle;
+    return Math.round(angle);
+  }
+
+  /**
+   * Calculate 3D spatial vector angle between three 3D points [x, y, z].
+   * Independent of camera distance & perspective tilt.
+   */
+  calculate3DAngle(a, b, c) {
+    if (!a || !b || !c) return 0;
+    const v1 = [a[0] - b[0], a[1] - b[1], (a[2] || 0) - (b[2] || 0)];
+    const v2 = [c[0] - b[0], c[1] - b[1], (c[2] || 0) - (b[2] || 0)];
+
+    const dotProduct = v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+    const mag1 = Math.sqrt(v1[0] ** 2 + v1[1] ** 2 + v1[2] ** 2);
+    const mag2 = Math.sqrt(v2[0] ** 2 + v2[1] ** 2 + v2[2] ** 2);
+
+    if (mag1 * mag2 === 0) return 0;
+    const cosAngle = Math.max(-1, Math.min(1, dotProduct / (mag1 * mag2)));
+    return Math.round((Math.acos(cosAngle) * 180.0) / Math.PI);
+  }
+
+  /**
+   * Calculate Spinal Posture Angle (Shoulder - Hip - Knee alignment)
+   * Ideal upright posture is ~170° - 180°. Angles < 145° indicate spinal rounding / bending.
+   */
+  calculateSpineAngle(landmarks) {
+    if (!landmarks || landmarks.length < 27) return 180;
+    const shoulder = landmarks[11] || landmarks[12];
+    const hip = landmarks[23] || landmarks[24];
+    const knee = landmarks[25] || landmarks[26];
+    if (!shoulder || !hip || !knee) return 180;
+    return this.calculateAngle(shoulder, hip, knee);
+  }
+
+  /**
+   * Calculate Bi-Lateral Symmetry Index (0 - 100%) between left and right joint angles
+   */
+  calculateSymmetryScore(leftAngle, rightAngle) {
+    if (leftAngle === 0 || rightAngle === 0) return 100;
+    const diff = Math.abs(leftAngle - rightAngle);
+    const maxAngle = Math.max(leftAngle, rightAngle, 1);
+    const symmetryRatio = Math.max(0, 100 - (diff / maxAngle) * 100);
+    return Math.round(symmetryRatio);
   }
 
   /**

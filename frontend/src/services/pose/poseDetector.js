@@ -1,20 +1,59 @@
 import { PoseLandmarker, FilesetResolver } from "@mediapipe/tasks-vision";
 
-// MediaPipe 33 Landmark Skeleton Connections for UI visualization
+/**
+ * Full MediaPipe 33 Landmark Skeleton Topology
+ * Includes Head/Neck, Torso, Arms, Hands/Fingers, Legs, and Feet/Heel triangles.
+ */
 export const POSE_CONNECTIONS = [
-  // Arms
-  [11, 13], [13, 15], // Left Arm
-  [12, 14], [14, 16], // Right Arm
-  [11, 12],           // Shoulders
-  
-  // Torso
-  [11, 23], [12, 24], // Spine sides
-  [23, 24],           // Hips
+  // 1. Head & Neck Topology
+  [0, 1], [1, 2], [2, 3], [3, 7],      // Left Eye to Ear
+  [0, 4], [4, 5], [5, 6], [6, 8],      // Right Eye to Ear
+  [9, 10],                             // Mouth line
+  [7, 11], [8, 12],                    // Neck to Shoulders
 
-  // Legs
-  [23, 25], [25, 27], // Left Leg
-  [24, 26], [26, 28], // Right Leg
+  // 2. Upper Body & Arms
+  [11, 12],                            // Shoulder girdle
+  [11, 13], [13, 15],                  // Left Arm (Shoulder -> Elbow -> Wrist)
+  [12, 14], [14, 16],                  // Right Arm (Shoulder -> Elbow -> Wrist)
+
+  // 3. Hands & Wrist Orientation
+  [15, 17], [15, 19], [15, 21], [17, 19], // Left Hand (Wrist -> Pinky, Index, Thumb)
+  [16, 18], [16, 20], [16, 22], [18, 20], // Right Hand (Wrist -> Pinky, Index, Thumb)
+
+  // 4. Torso & Core Axis
+  [11, 23], [12, 24],                  // Lateral Spine / Lat lines
+  [23, 24],                            // Pelvic girdle / Hips
+
+  // 5. Lower Body & Legs
+  [23, 25], [25, 27],                  // Left Leg (Hip -> Knee -> Ankle)
+  [24, 26], [26, 28],                  // Right Leg (Hip -> Knee -> Ankle)
+
+  // 6. Feet, Heels & Balance Base
+  [27, 29], [29, 31], [27, 31],        // Left Foot Triangle (Ankle -> Heel -> Toe)
+  [28, 30], [30, 32], [28, 32],        // Right Foot Triangle (Ankle -> Heel -> Toe)
 ];
+
+/**
+ * Key Anatomical Landmark Map for 33 Points
+ */
+export const LANDMARK_NAMES = {
+  NOSE: 0,
+  LEFT_EYE_INNER: 1, LEFT_EYE: 2, LEFT_EYE_OUTER: 3,
+  RIGHT_EYE_INNER: 4, RIGHT_EYE: 5, RIGHT_EYE_OUTER: 6,
+  LEFT_EAR: 7, RIGHT_EAR: 8,
+  MOUTH_LEFT: 9, MOUTH_RIGHT: 10,
+  LEFT_SHOULDER: 11, RIGHT_SHOULDER: 12,
+  LEFT_ELBOW: 13, RIGHT_ELBOW: 14,
+  LEFT_WRIST: 15, RIGHT_WRIST: 16,
+  LEFT_PINKY: 17, RIGHT_PINKY: 18,
+  LEFT_INDEX: 19, RIGHT_INDEX: 20,
+  LEFT_THUMB: 21, RIGHT_THUMB: 22,
+  LEFT_HIP: 23, RIGHT_HIP: 24,
+  LEFT_KNEE: 25, RIGHT_KNEE: 26,
+  LEFT_ANKLE: 27, RIGHT_ANKLE: 28,
+  LEFT_HEEL: 29, RIGHT_HEEL: 30,
+  LEFT_FOOT_INDEX: 31, RIGHT_FOOT_INDEX: 32,
+};
 
 class ClientPoseDetector {
   constructor() {
@@ -26,6 +65,7 @@ class ClientPoseDetector {
 
   /**
    * Asynchronously initialize MediaPipe PoseLandmarker in WebAssembly (WASM).
+   * Upgrades to High-Precision Full Model (33 points) with fallback to Lite.
    */
   async init() {
     if (this.isReady) return true;
@@ -38,7 +78,7 @@ class ClientPoseDetector {
 
     this.isInitializing = true;
     try {
-      console.log("⚡ Initializing Client-Side MediaPipe WASM PoseLandmarker...");
+      console.log("⚡ Initializing High-Precision 33-Landmark MediaPipe WASM Model...");
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
       );
@@ -46,22 +86,22 @@ class ClientPoseDetector {
       this.landmarker = await PoseLandmarker.createFromOptions(vision, {
         baseOptions: {
           modelAssetPath:
-            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+            "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task",
           delegate: "GPU",
         },
         runningMode: "VIDEO",
         numPoses: 1,
-        minPoseDetectionConfidence: 0.5,
-        minPosePresenceConfidence: 0.5,
-        minTrackingConfidence: 0.5,
+        minPoseDetectionConfidence: 0.55,
+        minPosePresenceConfidence: 0.55,
+        minTrackingConfidence: 0.55,
       });
 
       this.isReady = true;
       this.isInitializing = false;
-      console.log("✅ Client-Side MediaPipe WASM PoseLandmarker Ready!");
+      console.log("✅ 33-Point MediaPipe WASM Full Model Loaded!");
       return true;
     } catch (err) {
-      console.warn("⚠️ GPU delegate fallback to CPU for MediaPipe WASM...", err);
+      console.warn("⚠️ GPU/Full Model fallback to Lite WASM Model...", err);
       try {
         const vision = await FilesetResolver.forVisionTasks(
           "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
@@ -77,7 +117,7 @@ class ClientPoseDetector {
         });
         this.isReady = true;
         this.isInitializing = false;
-        console.log("✅ Client-Side MediaPipe WASM (CPU Mode) Ready!");
+        console.log("✅ 33-Point MediaPipe WASM (Lite Mode) Ready!");
         return true;
       } catch (cpuErr) {
         console.error("❌ Failed to initialize MediaPipe WASM Landmarker:", cpuErr);
@@ -89,9 +129,6 @@ class ClientPoseDetector {
 
   /**
    * Process HTML5 Video frame and extract 33 pose landmarks.
-   * @param {HTMLVideoElement} videoElement
-   * @param {number} timestamp - High-res timestamp (performance.now())
-   * @returns {Object|null} Telemetry result with pixel & normalized landmarks
    */
   detectFrame(videoElement, timestamp) {
     if (!this.isReady || !this.landmarker) return null;

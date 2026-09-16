@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
-import SelectionPage from './pages/SelectionPage';
+import Home from './pages/Home';
 import TutorialPage from './pages/TutorialPage';
 import TrackerPage from './pages/TrackerPage';
 import SummaryPage from './pages/SummaryPage';
@@ -112,11 +112,23 @@ export default function App() {
 
   return (
     <div className="min-h-screen flex flex-col bg-zinc-50/50 text-zinc-900">
-      <Navbar route={route} navigate={navigate} />
+      <Navbar 
+        route={route} 
+        navigate={navigate} 
+        onGetStarted={() => {
+          if (route.view !== 'selection') {
+            navigate('/');
+          }
+          setTimeout(() => {
+            const el = document.getElementById('catalog');
+            if (el) el.scrollIntoView({ behavior: 'smooth' });
+          }, 100);
+        }} 
+      />
 
       <main className="w-full max-w-7xl mx-auto px-4 sm:px-8 pb-12 flex-1">
         {route.view === 'selection' && (
-          <SelectionPage
+          <Home
             exercises={exercises}
             onSelectExercise={handleSelectExercise}
           />
