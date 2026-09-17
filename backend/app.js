@@ -85,9 +85,11 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Start Server ───────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`\n  ✦ FormFit API running at http://localhost:${PORT}`);
-  console.log(`  ✦ Environment: ${process.env.NODE_ENV || 'development'}\n`);
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`\n  ✦ FormFit API running at http://localhost:${PORT}`);
+    console.log(`  ✦ Environment: ${process.env.NODE_ENV || 'development'}\n`);
+  });
+}
 
 module.exports = app;

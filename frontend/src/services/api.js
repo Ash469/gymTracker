@@ -34,6 +34,15 @@ function getAuthHeaders() {
   };
 }
 
+async function parseResponseData(res, fallbackMessage = 'Server error occurred.') {
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('application/json')) {
+    return res.json();
+  }
+  const rawText = await res.text();
+  return { error: rawText || `${fallbackMessage} (${res.status})` };
+}
+
 // ── Auth Endpoints ─────────────────────────────────────
 
 export async function loginUser(credentials) {
@@ -42,7 +51,7 @@ export async function loginUser(credentials) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(credentials),
   });
-  const data = await res.json();
+  const data = await parseResponseData(res, 'Login failed');
   if (!res.ok) throw new Error(data.error || 'Login failed.');
   if (data.token) {
     localStorage.setItem('formfit_token', data.token);
@@ -56,7 +65,7 @@ export async function registerUser(userData) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(userData),
   });
-  const data = await res.json();
+  const data = await parseResponseData(res, 'Registration failed');
   if (!res.ok) throw new Error(data.error || 'Registration failed.');
   if (data.token) {
     localStorage.setItem('formfit_token', data.token);
@@ -68,7 +77,7 @@ export async function fetchUserProfile() {
   const res = await fetch(`${API_BASE}/auth/me`, {
     headers: getAuthHeaders(),
   });
-  const data = await res.json();
+  const data = await parseResponseData(res, 'Failed to fetch user profile');
   if (!res.ok) throw new Error(data.error || 'Failed to fetch user profile.');
   return data.user;
 }
