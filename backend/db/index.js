@@ -9,39 +9,49 @@ const { Pool } = require('pg');
 const nodeEnv = (process.env.NODE_ENV || 'development').toLowerCase();
 const isProduction = nodeEnv === 'production';
 
-let connectionString;
-let ssl;
+let connectionString = isProduction 
+  ? (process.env.AWS_DATABASE_URL || process.env.DATABASE_URL)
+  : (process.env.LOCAL_DATABASE_URL || process.env.DATABASE_URL);
 
+let ssl = false;
 if (isProduction) {
-  // Production Mode: AWS RDS PostgreSQL (SSL Enabled)
-  connectionString = process.env.AWS_DATABASE_URL || process.env.DATABASE_URL;
   // Strip inline sslmode query parameter to avoid pg-connection-string security warnings
   if (connectionString?.includes('sslmode=')) {
     connectionString = connectionString.replace(/([?&])sslmode=[^&]*/, '$1').replace(/[?&]$/, '');
   }
   ssl = { rejectUnauthorized: false };
-} else {
-  // Development Mode: Local PostgreSQL (SSL Disabled)
-  connectionString = process.env.LOCAL_DATABASE_URL || process.env.DATABASE_URL;
-  ssl = false;
+}
+
+// Fallback dummy connection string if env vars are missing to prevent pg.Pool cold-boot crash
+const activeDbConfigured = Boolean(connectionString);
+if (!connectionString) {
+  console.warn('⚠️ WARNING: No PostgreSQL connection string configured in environment variables.');
+  connectionString = 'postgresql://postgres:dummy@127.0.0.1:5432/FormFit';
 }
 
 const pool = new Pool({
   connectionString,
   ssl,
-  max: 20,
+  max: 10,
   idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  connectionTimeoutMillis: 4000,
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Unexpected error on idle PostgreSQL client:', err);
+  console.error('❌ Idle PostgreSQL client error:', err.message);
 });
 
 /**
- * Execute a SQL query.
+ * Safe query wrapper that handles missing database connection strings gracefully.
  */
-const query = (text, params) => pool.query(text, params);
+async function query(text, params) {
+  if (!activeDbConfigured) {
+    const err = new Error('AWS_DATABASE_URL environment variable is not configured in Vercel Settings.');
+    err.statusCode = 500;
+    throw err;
+  }
+  return pool.query(text, params);
+}
 
 /**
  * Acquire a client from pool for multi-statement transactions.
