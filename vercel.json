@@ -13,14 +13,15 @@
       }
     }
   ],
-  "rewrites": [
+  "routes": [git add vercel.json
+  
     {
-      "source": "/api/(.*)",
-      "destination": "/api/index.js"
+      "src": "/api/(.*)",
+      "dest": "/api/index.js"
     },
     {
-      "source": "/((?!api/).*)",
-      "destination": "/$1"
+      "src": "/(.*)",
+      "dest": "/frontend/$1"
     }
   ]
 }
