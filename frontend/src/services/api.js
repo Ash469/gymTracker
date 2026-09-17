@@ -113,7 +113,7 @@ export async function fetchExercises() {
       }
     }
   } catch (err) {
-    console.warn('[API] Could not fetch exercises from backend, using local fallback:', err.message);
+    console.warn("Could not load exercise catalog from API, using client fallback:", err);
   }
 
   return {

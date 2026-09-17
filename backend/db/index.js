@@ -48,16 +48,6 @@ const query = (text, params) => pool.query(text, params);
  */
 const getClient = () => pool.connect();
 
-// Auto-verify & patch optional schema columns on startup for seamless migrations
-(async () => {
-  try {
-    await pool.query('ALTER TABLE workout_sets ADD COLUMN IF NOT EXISTS "caloriesBurned" INT DEFAULT 0');
-    await pool.query('ALTER TABLE workouts ADD COLUMN IF NOT EXISTS "totalCalories" INT DEFAULT 0');
-  } catch (err) {
-    // Silent catch if tables are created later by migrate script
-  }
-})();
-
 module.exports = {
   pool,
   query,
