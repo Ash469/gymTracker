@@ -8,6 +8,7 @@ import { Activity, Camera, RefreshCw, CheckCircle2, ArrowUp, ArrowDown, Sparkles
 
 export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercise }) {
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [weight, setWeight] = useState(10); // default 10 kg load
 
   const {
     videoRef,
@@ -22,7 +23,18 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
   const handleFinishSetConfirm = () => {
     setShowConfirmModal(false);
     requestSummary((summaryData) => {
-      onFinishWorkout(summaryData);
+      const repsCount = summaryData?.reps ?? telemetry.reps ?? 0;
+      const durationSecs = summaryData?.duration_seconds ?? 30;
+      const calcCalories = Math.max(
+        1,
+        Math.round(repsCount * (0.25 + weight / 12) + durationSecs * 0.05)
+      );
+
+      onFinishWorkout({
+        ...summaryData,
+        weight: parseFloat(weight) || 0,
+        calories_burned: calcCalories,
+      });
     });
   };
 
@@ -125,11 +137,11 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 items-start">
         
         <div className="lg:col-span-7 xl:col-span-8 space-y-2">
-          <div className="relative rounded-2xl overflow-hidden bg-[#1c1917] border border-[#2c2825] shadow-lg flex items-center justify-center h-[55vh] sm:h-[62vh] lg:h-auto lg:aspect-[4/3] w-full group">
+          <div className="relative rounded-2xl overflow-hidden bg-[#1c1917] border border-[#2c2825] shadow-lg flex items-center justify-center aspect-[4/3] w-full max-h-[72vh] group">
             
             <canvas
               ref={canvasRef}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain bg-[#1c1917]"
             />
 
             <div className="absolute top-3 left-3 right-3 flex justify-between items-center z-20 pointer-events-none">
@@ -207,6 +219,38 @@ export default function TrackerPage({ exercise, onFinishWorkout, onSwitchExercis
                 <div className="text-base font-mono font-bold text-[#1c1917] pt-0.5">
                   {telemetry.form_score}%
                 </div>
+              </div>
+            </div>
+
+            {/* Load Weight Selector */}
+            <div className="bg-[#faf8f5] border border-[#e6e2dc] p-2.5 rounded-xl text-center space-y-1 mt-1">
+              <span className="text-[9px] font-mono font-bold text-[#78716c] uppercase tracking-wider block">
+                EXERCISE LOAD WEIGHT (KG)
+              </span>
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setWeight((w) => Math.max(0, w - 2.5))}
+                  className="w-7 h-7 rounded-lg bg-white border border-[#e6e2dc] text-sm font-bold text-[#1c1917] hover:bg-[#f0ece6] transition-colors flex items-center justify-center shadow-2xs"
+                >
+                  -
+                </button>
+                <div className="flex items-center gap-1 bg-white px-3 py-1 rounded-lg border border-[#e6e2dc]">
+                  <input
+                    type="number"
+                    value={weight}
+                    onChange={(e) => setWeight(Math.max(0, parseFloat(e.target.value) || 0))}
+                    className="w-14 text-center text-base font-mono font-bold text-[#1c1917] bg-transparent focus:outline-none"
+                  />
+                  <span className="text-xs font-bold text-[#78716c]">kg</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setWeight((w) => w + 2.5)}
+                  className="w-7 h-7 rounded-lg bg-white border border-[#e6e2dc] text-sm font-bold text-[#1c1917] hover:bg-[#f0ece6] transition-colors flex items-center justify-center shadow-2xs"
+                >
+                  +
+                </button>
               </div>
             </div>
 

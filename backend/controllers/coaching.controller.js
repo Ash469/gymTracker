@@ -45,4 +45,17 @@ async function getCoachingById(req, res) {
   }
 }
 
-module.exports = { analyzeWorkout, getCoachingHistory, getCoachingById };
+/**
+ * POST /api/v1/coaching/plan — Generate personalized AI Workout Plan (Mode A)
+ */
+async function generateWorkoutPlan(req, res) {
+  try {
+    const { planType } = req.body;
+    const plan = await coachingService.generateWorkoutPlan(req.user.id, planType || 'DAILY');
+    return res.status(201).json({ plan });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}
+
+module.exports = { analyzeWorkout, getCoachingHistory, getCoachingById, generateWorkoutPlan };

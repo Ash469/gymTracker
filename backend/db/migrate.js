@@ -4,8 +4,9 @@ const path = require('path');
 const { pool } = require('./index');
 
 async function migrate() {
+  const activeUrl = pool.options?.connectionString || process.env.DATABASE_URL || 'NOT SET';
   console.log('⚡ Running database migrations...');
-  console.log(`📌 DATABASE_URL: ${process.env.DATABASE_URL ? process.env.DATABASE_URL.replace(/:[^:@]+@/, ':****@') : 'NOT SET'}\n`);
+  console.log(`📌 Target DB URL: ${activeUrl.replace(/:[^:@]+@/, ':****@')}\n`);
 
   const schemaPath = path.join(__dirname, 'schema.sql');
   const sql = fs.readFileSync(schemaPath, 'utf8');

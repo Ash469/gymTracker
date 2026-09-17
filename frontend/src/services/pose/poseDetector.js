@@ -91,9 +91,9 @@ class ClientPoseDetector {
         },
         runningMode: "VIDEO",
         numPoses: 1,
-        minPoseDetectionConfidence: 0.55,
-        minPosePresenceConfidence: 0.55,
-        minTrackingConfidence: 0.55,
+        minPoseDetectionConfidence: 0.35,
+        minPosePresenceConfidence: 0.35,
+        minTrackingConfidence: 0.35,
       });
 
       this.isReady = true;
@@ -114,6 +114,9 @@ class ClientPoseDetector {
           },
           runningMode: "VIDEO",
           numPoses: 1,
+          minPoseDetectionConfidence: 0.35,
+          minPosePresenceConfidence: 0.35,
+          minTrackingConfidence: 0.35,
         });
         this.isReady = true;
         this.isInitializing = false;

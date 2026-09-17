@@ -59,6 +59,9 @@ async function analyzeWorkout(userId, workoutId) {
   const workoutSets = setsRes.rows.map((s) => ({
     exercise: { name: s.exerciseName, muscleGroup: s.exerciseMuscleGroup },
     reps: s.reps,
+    weight: s.weight != null ? parseFloat(s.weight) : 0,
+    caloriesBurned: s.caloriesBurned != null ? parseInt(s.caloriesBurned) : 0,
+    volume: (s.reps || 0) * (s.weight != null ? parseFloat(s.weight) : 0),
     averageScore: s.averageScore != null ? parseFloat(s.averageScore) : null,
     formFeedback: (feedbackMap[s.id] || []).map((fb) => ({
       errorType: fb.errorType,
@@ -89,10 +92,14 @@ async function analyzeWorkout(userId, workoutId) {
   const aiInput = {
     currentWorkout: {
       overallScore: workoutRow.overallScore != null ? parseFloat(workoutRow.overallScore) : null,
+      totalCalories: workoutRow.totalCalories || 0,
       exercises: workoutSets.map((s) => ({
         name: s.exercise.name,
         muscleGroup: s.exercise.muscleGroup,
         reps: s.reps,
+        weightKg: s.weight,
+        volumeKg: s.volume,
+        caloriesBurned: s.caloriesBurned,
         score: s.averageScore,
         errors: s.formFeedback.reduce((acc, fb) => {
           acc[fb.errorType] = (acc[fb.errorType] || 0) + fb.occurrenceCount;
@@ -169,4 +176,53 @@ async function getCoachingById(userId, coachingId) {
   return parseCoachingRow(res.rows[0]);
 }
 
-module.exports = { analyzeWorkout, getCoachingHistory, getCoachingById };
+/**
+ * Mode A: Generate and persist a personalized AI Workout Plan for a user.
+ */
+async function generateWorkoutPlan(userId, planType = 'DAILY') {
+  // Fetch user profile
+  const userRes = await query(
+    'SELECT name, "fitnessLevel", "primaryGoal" FROM users WHERE id = $1',
+    [userId]
+  );
+  const userProfile = userRes.rows[0] || {};
+
+  // Fetch recent workouts history for context
+  const recentWorkouts = await query(
+    `SELECT w.id, w."overallScore", w."completedAt", ws.reps, ws."averageScore", e.name as "exerciseName"
+     FROM workouts w
+     JOIN workout_sets ws ON w.id = ws."workoutId"
+     JOIN exercises e ON ws."exerciseId" = e.id
+     WHERE w."userId" = $1 AND w.status = 'COMPLETED'
+     ORDER BY w."completedAt" DESC
+     LIMIT 10`,
+    [userId]
+  );
+
+  const userContext = {
+    profile: userProfile,
+    recentWorkouts: recentWorkouts.rows,
+    requestedPlanType: planType,
+  };
+
+  // Call AWS Bedrock for plan generation
+  const planData = await bedrockService.generateWorkoutPlan(userContext);
+
+  // Save generated plan to PostgreSQL
+  const planRes = await query(
+    `INSERT INTO ai_workout_plans ("userId", "planType", title, "aiReasoning", exercises)
+     VALUES ($1, $2, $3, $4, $5)
+     RETURNING *`,
+    [
+      userId,
+      planType,
+      planData.title || 'Personalized AI Workout Plan',
+      planData.aiReasoning || 'Generated based on recent biomechanical performance.',
+      JSON.stringify(planData.exercises || []),
+    ]
+  );
+
+  return planRes.rows[0];
+}
+
+module.exports = { analyzeWorkout, getCoachingHistory, getCoachingById, generateWorkoutPlan };

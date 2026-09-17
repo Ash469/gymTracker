@@ -29,7 +29,13 @@ export class ShoulderPress extends BaseExercise {
 
     // Check symmetry warning
     if (Math.abs(lAngle - rAngle) > 22.0) {
-      this.form_warning = "⚠️ Uneven press! Push both arms evenly";
+      this.recordWarning('UNEVEN_PRESS', '⚠️ Uneven press! Push both arms evenly', {
+        jointName: 'Shoulders & Elbows',
+        measuredAngle: this.angle,
+        expectedRange: '140-180',
+        severity: 'MEDIUM',
+        injuryRisk: 'LOW',
+      });
     }
 
     // State machine logic

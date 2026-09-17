@@ -1,7 +1,7 @@
 import React from 'react';
-import { Award, Clock, Flame, ShieldCheck, RefreshCw, ArrowRight, Activity, Dumbbell } from 'lucide-react';
+import { Award, Clock, Flame, ShieldCheck, RefreshCw, ArrowRight, Activity, Dumbbell, Sparkles } from 'lucide-react';
 
-export default function SummaryPage({ summary, onTrainAnother, onRetry }) {
+export default function SummaryPage({ summary, aiCoaching, onTrainAnother, onRetry }) {
   if (!summary) return null;
 
   const formatTime = (secs) => {
@@ -26,40 +26,50 @@ export default function SummaryPage({ summary, onTrainAnother, onRetry }) {
         </p>
       </div>
 
-      {/* 4 Key Metrics Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="claude-card rounded-2xl p-5 text-center space-y-1.5 border border-zinc-200/90 bg-white shadow-2xs">
+      {/* 5 Key Metrics Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="claude-card rounded-2xl p-4 text-center space-y-1 border border-zinc-200/90 bg-white shadow-2xs">
           <div className="flex items-center justify-center gap-1 text-zinc-400">
-            <Activity className="w-4 h-4 text-zinc-500" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">REPETITIONS</span>
+            <Activity className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider">REPS</span>
           </div>
-          <div className="text-3xl font-mono font-bold text-zinc-900">{summary.reps}</div>
+          <div className="text-2xl font-mono font-bold text-zinc-900">{summary.reps}</div>
         </div>
 
-        <div className="claude-card rounded-2xl p-5 text-center space-y-1.5 border border-zinc-200/90 bg-white shadow-2xs">
+        <div className="claude-card rounded-2xl p-4 text-center space-y-1 border border-zinc-200/90 bg-white shadow-2xs">
           <div className="flex items-center justify-center gap-1 text-zinc-400">
-            <Clock className="w-4 h-4 text-zinc-500" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">DURATION</span>
+            <Dumbbell className="w-3.5 h-3.5 text-sky-600" />
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider">LOAD</span>
           </div>
-          <div className="text-3xl font-mono font-bold text-zinc-900">{formatTime(summary.duration_seconds || 0)}</div>
+          <div className="text-2xl font-mono font-bold text-zinc-900">
+            {summary.weight || 0} <span className="text-xs text-zinc-400 font-sans font-medium">kg</span>
+          </div>
         </div>
 
-        <div className="claude-card rounded-2xl p-5 text-center space-y-1.5 border border-zinc-200/90 bg-white shadow-2xs">
+        <div className="claude-card rounded-2xl p-4 text-center space-y-1 border border-zinc-200/90 bg-white shadow-2xs">
           <div className="flex items-center justify-center gap-1 text-zinc-400">
-            <Flame className="w-4 h-4 text-amber-600" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">CALORIES</span>
+            <Clock className="w-3.5 h-3.5 text-zinc-500" />
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider">TIME</span>
           </div>
-          <div className="text-3xl font-mono font-bold text-zinc-900">
+          <div className="text-2xl font-mono font-bold text-zinc-900">{formatTime(summary.duration_seconds || 0)}</div>
+        </div>
+
+        <div className="claude-card rounded-2xl p-4 text-center space-y-1 border border-zinc-200/90 bg-white shadow-2xs">
+          <div className="flex items-center justify-center gap-1 text-zinc-400">
+            <Flame className="w-3.5 h-3.5 text-amber-600" />
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider">CALORIES</span>
+          </div>
+          <div className="text-2xl font-mono font-bold text-zinc-900">
             {summary.calories_burned || 0} <span className="text-xs text-zinc-400 font-sans font-medium">kcal</span>
           </div>
         </div>
 
-        <div className="claude-card rounded-2xl p-5 text-center space-y-1.5 border border-zinc-200/90 bg-white shadow-2xs">
+        <div className="claude-card rounded-2xl p-4 text-center space-y-1 border border-zinc-200/90 bg-white shadow-2xs col-span-2 sm:col-span-1">
           <div className="flex items-center justify-center gap-1 text-zinc-400">
-            <ShieldCheck className="w-4 h-4 text-emerald-600" />
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider">FORM SCORE</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="text-[9px] font-mono font-bold uppercase tracking-wider">ACCURACY</span>
           </div>
-          <div className="text-3xl font-mono font-bold text-emerald-700">{summary.form_score}%</div>
+          <div className="text-2xl font-mono font-bold text-emerald-700">{summary.form_score}%</div>
         </div>
       </div>
 
@@ -101,6 +111,37 @@ export default function SummaryPage({ summary, onTrainAnother, onRetry }) {
           </div>
         </div>
       </div>
+
+      {/* Amazon Bedrock AI Coaching Insights Box */}
+      {aiCoaching && (
+        <div className="claude-card rounded-2xl p-6 space-y-4 border border-[#e6d4c9] bg-[#fdfaf7] shadow-sm">
+          <div className="flex items-center gap-2 text-[#E87552]">
+            <Sparkles className="w-5 h-5 animate-pulse" />
+            <h3 className="font-serif-claude text-lg font-bold text-[#171513]">
+              AWS Bedrock AI Coach Insights
+            </h3>
+          </div>
+          <p className="text-xs text-[#57534e] leading-relaxed">
+            {aiCoaching.summary || 'Workout telemetry recorded and analyzed by Amazon Bedrock.'}
+          </p>
+
+          {aiCoaching.recommendations && aiCoaching.recommendations.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8c827a]">
+                Actionable Focus Cues for Next Workout:
+              </h4>
+              <ul className="space-y-1.5 text-xs text-[#171513]">
+                {aiCoaching.recommendations.map((rec, i) => (
+                  <li key={i} className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-[#e6e2dc]">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[#E87552] mt-1.5 shrink-0" />
+                    <span>{typeof rec === 'string' ? rec : rec.cue || JSON.stringify(rec)}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Action CTAs */}
       <div className="flex flex-col sm:flex-row gap-3 pt-2">

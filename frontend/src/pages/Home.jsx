@@ -46,6 +46,49 @@ export default function Home({ exercises, onSelectExercise }) {
       {/* How It Works Section */}
       <HowItWorksSection />
 
+      {/* AWS Bedrock AI Growth Coach & Workout Planner Banner */}
+      <section className="py-10 bg-[#fdfaf7] border-b border-[#e6e0d8]">
+        <div className="w-full max-w-7xl mx-auto px-4 sm:px-8">
+          <div className="claude-card bg-white border border-[#e6d4c9] rounded-2xl p-6 sm:p-8 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
+            <div className="space-y-2 max-w-2xl">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#f6eee9] text-[#E87552] text-[10px] font-mono font-bold uppercase tracking-wider border border-[#e6d4c9]">
+                <span>✦</span>
+                <span>AWS Bedrock Mode A Coach</span>
+              </div>
+              <h3 className="font-serif-claude text-2xl font-bold text-[#171513]">
+                AI Daily Workout & Form Correction Plan
+              </h3>
+              <p className="text-xs text-[#78716c] leading-relaxed">
+                AWS Bedrock scans your past workout history, form accuracy scores, and joint warning patterns to build a personalized workout plan for your goal.
+              </p>
+            </div>
+
+            <button
+              onClick={async () => {
+                try {
+                  const token = localStorage.getItem('formfit_token');
+                  if (!token) {
+                    alert('Please Sign In first to generate your personalized AI workout plan.');
+                    return;
+                  }
+                  const { generateAIWorkoutPlan } = await import('../services/api');
+                  const plan = await generateAIWorkoutPlan('DAILY');
+                  alert(`✦ AWS Bedrock Plan Generated:\n\nTitle: ${plan.title}\nReasoning: ${plan.aiReasoning}\n\nExercises Recommended:\n` + 
+                    (plan.exercises ? plan.exercises.map(e => `• ${e.name || e.slug}: ${e.sets || 3} sets x ${e.reps || 10} reps (${e.focusCue || 'Maintain form'})`).join('\n') : 'All set!'));
+                } catch (err) {
+                  alert(`AI Plan: ${err.message}`);
+                }
+              }}
+              className="px-6 py-3.5 rounded-xl font-bold text-xs text-white transition-all shadow-md hover:bg-[#d4603c] shrink-0 smooth-press flex items-center gap-2"
+              style={{ background: '#E87552' }}
+            >
+              <span>Generate AI Plan</span>
+              <span>→</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       {/* Catalog Section */}
       <section id="catalog" ref={catalogRef} className="py-16 border-b border-[#e6e0d8] bg-[#FAF7F2]">
         <div className="w-full max-w-7xl mx-auto px-4 sm:px-8">

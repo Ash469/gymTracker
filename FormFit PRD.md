@@ -6,7 +6,7 @@
 **Target:** Production Baseline  
 **Primary Platform:** Web (Desktop & Mobile Browser)  
 **Primary Users:** Beginner and intermediate gym-goers  
-**Core Technology:** React + `@mediapipe/tasks-vision` (WebAssembly) + Node.js Express + PostgreSQL + Amazon Bedrock  
+**Core Technology:** React + `@mediapipe/tasks-vision` (WebAssembly)  
 
 ---
 

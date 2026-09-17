@@ -6,6 +6,8 @@
   "scripts": {
     "start": "node app.js",
     "dev": "nodemon app.js",
+    "migrate": "node db/migrate.js",
+    "seed": "node db/seed.js",
     "db:migrate": "node db/migrate.js",
     "db:seed": "node db/seed.js"
   },

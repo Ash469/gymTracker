@@ -10,6 +10,9 @@ router.use(authMiddleware);
 // POST /api/v1/coaching/analyze        — request AI coaching for a workout
 router.post('/analyze', coachingController.analyzeWorkout);
 
+// POST /api/v1/coaching/plan           — generate AI daily/weekly workout plan (Mode A)
+router.post('/plan', coachingController.generateWorkoutPlan);
+
 // GET  /api/v1/coaching                — list coaching history
 router.get('/', coachingController.getCoachingHistory);
 

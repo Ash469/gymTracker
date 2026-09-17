@@ -65,7 +65,7 @@ async function abandonWorkout(req, res) {
  */
 async function addSet(req, res) {
   try {
-    const { exerciseId, reps, averageScore, bestScore, worstScore, duration, errors } = req.body;
+    const { exerciseId, reps, weight, averageScore, bestScore, worstScore, duration, errors, formFeedback } = req.body;
 
     if (!exerciseId) {
       return res.status(400).json({ error: 'exerciseId is required.' });
@@ -74,11 +74,13 @@ async function addSet(req, res) {
     const set = await workoutService.addSet(req.user.id, req.params.workoutId, {
       exerciseId,
       reps,
+      weight,
       averageScore,
       bestScore,
       worstScore,
       duration,
       errors,
+      formFeedback,
     });
     return res.status(201).json({ set });
   } catch (err) {

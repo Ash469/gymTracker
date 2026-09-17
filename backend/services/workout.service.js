@@ -139,11 +139,13 @@ async function completeWorkout(userId, workoutId, data = {}) {
     ? new Date(completedAt.getTime() - duration * 1000)
     : workout.startedAt;
 
+  const totalCalories = workout.workoutSets.reduce((sum, s) => sum + (s.caloriesBurned || 0), 0);
+
   await query(
     `UPDATE workouts
-     SET status = 'COMPLETED', "startedAt" = $1, "completedAt" = $2, "overallScore" = $3, duration = $4, "updatedAt" = NOW()
-     WHERE id = $5`,
-    [adjustedStartedAt, completedAt, overallScore, duration, workoutId]
+     SET status = 'COMPLETED', "startedAt" = $1, "completedAt" = $2, "overallScore" = $3, duration = $4, "totalCalories" = $5, "updatedAt" = NOW()
+     WHERE id = $6`,
+    [adjustedStartedAt, completedAt, overallScore, duration, totalCalories, workoutId]
   );
 
   return getWorkout(userId, workoutId);
@@ -178,8 +180,23 @@ async function addSet(userId, workoutId, data) {
     throw err;
   }
 
+  // Resolve target exercise UUID from slug or ID
+  let targetExerciseId = data.exerciseId;
+  const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(data.exerciseId);
+
+  if (!isUuid) {
+    const exLookup = await query('SELECT id FROM exercises WHERE slug = $1 OR name ILIKE $1 LIMIT 1', [data.exerciseId]);
+    if (exLookup.rows.length > 0) {
+      targetExerciseId = exLookup.rows[0].id;
+    } else {
+      const err = new Error(`Exercise '${data.exerciseId}' not found.`);
+      err.statusCode = 400;
+      throw err;
+    }
+  }
+
   const existingSets = workout.workoutSets.filter(
-    (s) => s.exercise.id === data.exerciseId
+    (s) => s.exercise.id === targetExerciseId
   );
   const setNumber = existingSets.length + 1;
 
@@ -188,14 +205,16 @@ async function addSet(userId, workoutId, data) {
     await client.query('BEGIN');
 
     const setRes = await client.query(
-      `INSERT INTO workout_sets ("workoutId", "exerciseId", "setNumber", reps, "averageScore", "bestScore", "worstScore", duration)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO workout_sets ("workoutId", "exerciseId", "setNumber", reps, weight, "caloriesBurned", "averageScore", "bestScore", "worstScore", duration)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [
         workoutId,
-        data.exerciseId,
+        targetExerciseId,
         setNumber,
         data.reps ?? 0,
+        data.weight ?? 0.0,
+        data.caloriesBurned ?? 0,
         data.averageScore ?? null,
         data.bestScore ?? null,
         data.worstScore ?? null,
@@ -206,7 +225,30 @@ async function addSet(userId, workoutId, data) {
     const newSetRow = setRes.rows[0];
 
     const feedbackRows = [];
-    if (data.errors && Object.keys(data.errors).length > 0) {
+    if (Array.isArray(data.formFeedback) && data.formFeedback.length > 0) {
+      const itemsToInsert = data.formFeedback.slice(0, 15);
+      for (const item of itemsToInsert) {
+        const fbRes = await client.query(
+          `INSERT INTO form_feedback 
+            ("setId", "repNumber", "jointName", "errorType", "measuredAngle", "expectedRange", severity, "injuryRisk", "occurrenceCount", "feedbackMessage")
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+           RETURNING *`,
+          [
+            newSetRow.id,
+            item.repNumber ?? null,
+            item.jointName ?? null,
+            item.errorType || 'FORM_DEVIATION',
+            item.measuredAngle ?? null,
+            item.expectedRange ?? null,
+            item.severity || 'MEDIUM',
+            item.injuryRisk || 'LOW',
+            item.occurrenceCount ?? 1,
+            item.feedbackMessage ?? null,
+          ]
+        );
+        feedbackRows.push(fbRes.rows[0]);
+      }
+    } else if (data.errors && Object.keys(data.errors).length > 0) {
       for (const [errorType, count] of Object.entries(data.errors)) {
         const occurrenceCount = typeof count === 'number' ? count : 1;
         const fbRes = await client.query(
@@ -221,7 +263,7 @@ async function addSet(userId, workoutId, data) {
 
     const exRes = await client.query(
       'SELECT id, name, "muscleGroup" FROM exercises WHERE id = $1',
-      [data.exerciseId]
+      [targetExerciseId]
     );
 
     await client.query('COMMIT');

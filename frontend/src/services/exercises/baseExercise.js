@@ -20,6 +20,8 @@ export class BaseExercise {
     this.startTime = Date.now();
     this.is_active = true;
     this.angle = 0;
+    this.warnings = {};
+    this.formFeedback = [];
   }
 
   /**
@@ -36,6 +38,50 @@ export class BaseExercise {
     this.startTime = Date.now();
     this.is_active = true;
     this.angle = 0;
+    this.warnings = {};
+    this.formFeedback = [];
+  }
+
+  /**
+   * Record a biomechanical form warning (Aggregated per rep to prevent DB spam).
+   */
+  recordWarning(errorType, message, options = {}) {
+    this.form_warning = message;
+    this.warnings[errorType] = (this.warnings[errorType] || 0) + 1;
+
+    const repNum = options.repNumber || (this.reps > 0 ? this.reps : 1);
+
+    const existingIndex = this.formFeedback.findIndex(
+      (fb) => fb.repNumber === repNum && fb.errorType === errorType
+    );
+
+    if (existingIndex !== -1) {
+      const existing = this.formFeedback[existingIndex];
+      const newCount = (existing.occurrenceCount || 1) + 1;
+      const currentAngle = options.measuredAngle !== undefined ? options.measuredAngle : (this.angle || 0);
+      const avgAngle = Math.round(
+        ((existing.measuredAngle || 0) * (newCount - 1) + currentAngle) / newCount
+      );
+
+      this.formFeedback[existingIndex] = {
+        ...existing,
+        occurrenceCount: newCount,
+        measuredAngle: avgAngle,
+        feedbackMessage: message,
+      };
+    } else {
+      this.formFeedback.push({
+        repNumber: repNum,
+        jointName: options.jointName || this.targetJoint || 'Primary Joint',
+        errorType: errorType,
+        measuredAngle: options.measuredAngle !== undefined ? options.measuredAngle : (this.angle || 0),
+        expectedRange: options.expectedRange || 'FULL_ROM',
+        severity: options.severity || 'MEDIUM',
+        injuryRisk: options.injuryRisk || 'LOW',
+        occurrenceCount: 1,
+        feedbackMessage: message,
+      });
+    }
   }
 
   /**
@@ -154,6 +200,21 @@ export class BaseExercise {
     const calories = Math.round(this.reps * 0.45);
     const exerciseMeta = EXERCISES_DATA[this.id] || {};
 
+    const feedbackList = [...this.formFeedback];
+    if (feedbackList.length === 0) {
+      feedbackList.push({
+        repNumber: Math.max(1, this.reps),
+        jointName: this.targetJoint || 'Primary Joint',
+        errorType: 'OPTIMAL_FORM',
+        measuredAngle: this.angle || 90,
+        expectedRange: 'FULL_ROM',
+        severity: 'LOW',
+        injuryRisk: 'LOW',
+        occurrenceCount: Math.max(1, this.reps),
+        feedbackMessage: 'Great execution! Maintain steady tempo and proper alignment.',
+      });
+    }
+
     return {
       id: this.id,
       exercise_id: this.id,
@@ -168,6 +229,8 @@ export class BaseExercise {
       calories_burned: calories,
       target_muscles: exerciseMeta.target_muscles || [this.targetJoint],
       rep_history: this.repHistory || [],
+      warnings: this.warnings || {},
+      formFeedback: feedbackList,
     };
   }
 }

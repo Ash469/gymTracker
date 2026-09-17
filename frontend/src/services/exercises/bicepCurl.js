@@ -23,7 +23,13 @@ export class BicepCurl extends BaseExercise {
     // Form warning: check if elbow drifts far forward from shoulder
     const elbowDrift = Math.abs(rElbow[0] - rShoulder[0]);
     if (elbowDrift > 80) {
-      this.form_warning = "⚠️ Keep elbow pinned to your side!";
+      this.recordWarning('ELBOW_FLARE', '⚠️ Keep elbow pinned to your side!', {
+        jointName: 'Elbow',
+        measuredAngle: this.angle,
+        expectedRange: '35-160',
+        severity: 'MEDIUM',
+        injuryRisk: 'LOW',
+      });
     }
 
     if (this.angle <= 70) {
