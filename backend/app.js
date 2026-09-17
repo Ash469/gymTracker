@@ -18,7 +18,32 @@ const PORT = process.env.PORT || 4000;
 app.use(cors());
 app.use(express.json());
 
-// ── Health Check ────────────────────────────────────────
+const { query } = require('./db');
+
+// ── Diagnostic Health Check Endpoint ───────────────────
+app.get('/api/v1/health', async (_req, res) => {
+  let dbStatus = 'disconnected';
+  let dbError = null;
+
+  try {
+    const dbTest = await query('SELECT NOW()');
+    if (dbTest.rows.length > 0) dbStatus = 'connected';
+  } catch (err) {
+    dbError = err.message;
+  }
+
+  res.json({
+    status: 'online',
+    app: 'FormFit API',
+    database: dbStatus,
+    dbError: dbError,
+    environment: process.env.NODE_ENV || 'development',
+    hasAwsDbUrl: Boolean(process.env.AWS_DATABASE_URL),
+    timestamp: new Date().toISOString()
+  });
+});
+
+// ── Root Endpoint ───────────────────────────────────────
 app.get('/', (_req, res) => {
   res.json({
     status: 'online',

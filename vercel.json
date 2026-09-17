@@ -13,8 +13,7 @@
       }
     }
   ],
-  "routes": [git add vercel.json
-  
+  "routes": [
     {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
