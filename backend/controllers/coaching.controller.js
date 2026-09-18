@@ -58,4 +58,53 @@ async function generateWorkoutPlan(req, res) {
   }
 }
 
-module.exports = { analyzeWorkout, getCoachingHistory, getCoachingById, generateWorkoutPlan };
+/**
+ * GET /api/v1/coaching/plan — Fetch latest AI Workout Plan
+ */
+async function getLatestWorkoutPlan(req, res) {
+  try {
+    const plan = await coachingService.getLatestWorkoutPlan(req.user.id);
+    return res.json({ plan });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}
+
+/**
+ * POST /api/v1/coaching/chat — Ask AWS Bedrock AI Coach a custom question
+ */
+async function askCoachQuestion(req, res) {
+  try {
+    const { prompt } = req.body;
+    if (!prompt || !prompt.trim()) {
+      return res.status(400).json({ error: 'Question prompt is required.' });
+    }
+
+    const coaching = await coachingService.askCoachQuestion(req.user.id, prompt.trim());
+    return res.status(201).json({ coaching });
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}
+
+/**
+ * DELETE /api/v1/coaching/:coachingId — Delete a coaching entry or chat session
+ */
+async function deleteCoachingSession(req, res) {
+  try {
+    const result = await coachingService.deleteCoachingSession(req.user.id, req.params.coachingId);
+    return res.json(result);
+  } catch (err) {
+    return res.status(err.statusCode || 500).json({ error: err.message });
+  }
+}
+
+module.exports = {
+  analyzeWorkout,
+  getCoachingHistory,
+  getCoachingById,
+  generateWorkoutPlan,
+  getLatestWorkoutPlan,
+  askCoachQuestion,
+  deleteCoachingSession,
+};

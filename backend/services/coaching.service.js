@@ -222,7 +222,102 @@ async function generateWorkoutPlan(userId, planType = 'DAILY') {
     ]
   );
 
-  return planRes.rows[0];
+  // Parse exercises JSON before returning
+  const row = planRes.rows[0];
+  return {
+    ...row,
+    exercises: typeof row.exercises === 'string' ? JSON.parse(row.exercises) : (row.exercises || []),
+  };
 }
 
-module.exports = { analyzeWorkout, getCoachingHistory, getCoachingById, generateWorkoutPlan };
+/**
+ * Fetch the latest active AI Workout Plan for a user from PostgreSQL.
+ */
+async function getLatestWorkoutPlan(userId) {
+  const res = await query(
+    `SELECT * FROM ai_workout_plans
+     WHERE "userId" = $1
+     ORDER BY "createdAt" DESC
+     LIMIT 1`,
+    [userId]
+  );
+  if (res.rows.length === 0) return null;
+  const row = res.rows[0];
+  return {
+    ...row,
+    exercises: typeof row.exercises === 'string' ? JSON.parse(row.exercises) : (row.exercises || []),
+  };
+}
+async function askCoachQuestion(userId, userPrompt) {
+  // Fetch user profile
+  const userRes = await query(
+    'SELECT name, "fitnessLevel", "primaryGoal" FROM users WHERE id = $1',
+    [userId]
+  );
+  const userProfile = userRes.rows[0] || {};
+
+  // Fetch recent workouts summary & error telemetry (limited to 3 for token efficiency)
+  const recentWorkouts = await query(
+    `SELECT w.id, w."overallScore", w."completedAt", ws.reps, ws."averageScore", e.name as "exerciseName"
+     FROM workouts w
+     JOIN workout_sets ws ON w.id = ws."workoutId"
+     JOIN exercises e ON ws."exerciseId" = e.id
+     WHERE w."userId" = $1 AND w.status = 'COMPLETED'
+     ORDER BY w."completedAt" DESC
+     LIMIT 6`,
+    [userId]
+  );
+
+  const userContext = {
+    profile: userProfile,
+    recentWorkouts: recentWorkouts.rows,
+  };
+
+  // Call AWS Bedrock for Q&A response
+  const aiAnswer = await bedrockService.askCoachQuestion(userContext, userPrompt);
+
+  // Persist Q&A conversation into PostgreSQL ai_coaching table
+  const coachingRes = await query(
+    `INSERT INTO ai_coaching ("userId", "coachingType", "userPrompt", summary, strengths, "areasToImprove", recommendations)
+     VALUES ($1, 'CHAT', $2, $3, $4, $5, $6)
+     RETURNING *`,
+    [
+      userId,
+      userPrompt,
+      aiAnswer.summary || 'AI coaching response generated.',
+      JSON.stringify(aiAnswer.strengths || []),
+      JSON.stringify(aiAnswer.areasToImprove || []),
+      JSON.stringify(aiAnswer.recommendations || []),
+    ]
+  );
+
+  return parseCoachingRow(coachingRes.rows[0]);
+}
+
+/**
+ * Delete a specific AI coaching session or chat entry from PostgreSQL.
+ */
+async function deleteCoachingSession(userId, coachingId) {
+  const res = await query(
+    'DELETE FROM ai_coaching WHERE id = $1 AND "userId" = $2 RETURNING id',
+    [coachingId, userId]
+  );
+
+  if (res.rows.length === 0) {
+    const err = new Error('Coaching entry not found or unauthorized.');
+    err.statusCode = 404;
+    throw err;
+  }
+
+  return { status: 'success', deletedId: coachingId };
+}
+
+module.exports = {
+  analyzeWorkout,
+  getCoachingHistory,
+  getCoachingById,
+  generateWorkoutPlan,
+  getLatestWorkoutPlan,
+  askCoachQuestion,
+  deleteCoachingSession,
+};

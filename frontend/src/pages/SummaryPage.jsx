@@ -114,27 +114,78 @@ export default function SummaryPage({ summary, aiCoaching, onTrainAnother, onRet
 
       {/* Amazon Bedrock AI Coaching Insights Box */}
       {aiCoaching && (
-        <div className="claude-card rounded-2xl p-6 space-y-4 border border-[#e6d4c9] bg-[#fdfaf7] shadow-sm">
-          <div className="flex items-center gap-2 text-[#E87552]">
-            <Sparkles className="w-5 h-5 animate-pulse" />
-            <h3 className="font-serif-claude text-lg font-bold text-[#171513]">
-              AWS Bedrock AI Coach Insights
-            </h3>
+        <div className="claude-card rounded-2xl p-6 space-y-5 border border-[#e6d4c9] bg-[#fdfaf7] shadow-sm">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-[#E87552]">
+              <Sparkles className="w-5 h-5 animate-pulse" />
+              <h3 className="font-serif-claude text-lg font-bold text-[#171513]">
+                AWS Bedrock AI Coach Insights
+              </h3>
+            </div>
+            <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-[#f6eee9] text-[#E87552] border border-[#e6d4c9]">
+              Claude 3 AI Analysis
+            </span>
           </div>
-          <p className="text-xs text-[#57534e] leading-relaxed">
+
+          <p className="text-xs text-[#57534e] leading-relaxed bg-white p-3.5 rounded-xl border border-[#e6e2dc]">
             {aiCoaching.summary || 'Workout telemetry recorded and analyzed by Amazon Bedrock.'}
           </p>
 
+          {/* Strengths & Areas to Improve Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+            {aiCoaching.strengths && aiCoaching.strengths.length > 0 && (
+              <div className="bg-emerald-50/70 border border-emerald-200/80 p-3.5 rounded-xl space-y-1.5">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                  ✓ Execution Strengths
+                </span>
+                <ul className="space-y-1 text-emerald-900 text-[11px]">
+                  {aiCoaching.strengths.map((str, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-emerald-600 font-bold">•</span>
+                      <span>{str}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {aiCoaching.areasToImprove && aiCoaching.areasToImprove.length > 0 && (
+              <div className="bg-amber-50/70 border border-amber-200/80 p-3.5 rounded-xl space-y-1.5">
+                <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-800 flex items-center gap-1">
+                  ⚡ Technique Refinements
+                </span>
+                <ul className="space-y-1 text-amber-900 text-[11px]">
+                  {aiCoaching.areasToImprove.map((area, idx) => (
+                    <li key={idx} className="flex items-start gap-1.5">
+                      <span className="text-amber-600 font-bold">•</span>
+                      <span>{area}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+
+          {/* Actionable Recommendations */}
           {aiCoaching.recommendations && aiCoaching.recommendations.length > 0 && (
             <div className="space-y-2 pt-1">
               <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8c827a]">
-                Actionable Focus Cues for Next Workout:
+                Actionable Cues For Your Next Set:
               </h4>
-              <ul className="space-y-1.5 text-xs text-[#171513]">
+              <ul className="space-y-2 text-xs text-[#171513]">
                 {aiCoaching.recommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-2 bg-white p-2.5 rounded-xl border border-[#e6e2dc]">
-                    <span className="w-1.5 h-1.5 rounded-full bg-[#E87552] mt-1.5 shrink-0" />
-                    <span>{typeof rec === 'string' ? rec : rec.cue || JSON.stringify(rec)}</span>
+                  <li key={i} className="flex items-start gap-2.5 bg-white p-3 rounded-xl border border-[#e6e2dc] shadow-2xs">
+                    <span className="w-2 h-2 rounded-full bg-[#E87552] mt-1.5 shrink-0" />
+                    <div>
+                      {typeof rec === 'object' && rec.exercise && (
+                        <span className="font-bold text-[#E87552] mr-1.5 font-mono text-[11px]">
+                          [{rec.exercise}]
+                        </span>
+                      )}
+                      <span className="text-[#171513] text-xs">
+                        {typeof rec === 'string' ? rec : rec.cue || JSON.stringify(rec)}
+                      </span>
+                    </div>
                   </li>
                 ))}
               </ul>

@@ -19,6 +19,7 @@ app.use(cors());
 app.use(express.json());
 
 const { query } = require('./db');
+const bedrockService = require('./services/bedrock.service');
 
 // ── Diagnostic Health Check Endpoint ───────────────────
 app.get('/api/v1/health', async (_req, res) => {
@@ -37,6 +38,7 @@ app.get('/api/v1/health', async (_req, res) => {
     app: 'FormFit API',
     database: dbStatus,
     dbError: dbError,
+    bedrock: bedrockService.getBedrockStatus(),
     environment: process.env.NODE_ENV || 'development',
     hasAwsDbUrl: Boolean(process.env.AWS_DATABASE_URL),
     timestamp: new Date().toISOString()

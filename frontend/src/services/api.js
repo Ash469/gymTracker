@@ -235,6 +235,36 @@ export async function generateAIWorkoutPlan(planType = 'DAILY') {
   return data.plan;
 }
 
+export async function fetchLatestAIWorkoutPlan() {
+  const res = await fetch(`${API_BASE}/coaching/plan`, {
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to fetch AI workout plan.');
+  return data.plan;
+}
+
+export async function askAICoach(prompt) {
+  const res = await fetch(`${API_BASE}/coaching/chat`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ prompt }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to send message to Bedrock AI Coach.');
+  return data.coaching;
+}
+
+export async function deleteCoachingLog(coachingId) {
+  const res = await fetch(`${API_BASE}/coaching/${coachingId}`, {
+    method: 'DELETE',
+    headers: getAuthHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Failed to delete coaching entry.');
+  return data;
+}
+
 // ── Telemetry & Local Stubs ────────────────────────────
 
 export async function fetchTelemetry() {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { User, Activity, Sparkles, Calendar, Award, ShieldCheck, Flame, Dumbbell, RefreshCw, LogOut, CheckCircle2, ChevronRight } from 'lucide-react';
-import { fetchUserWorkouts, fetchCoachingHistory, generateAIWorkoutPlan } from '../services/api';
+import { User, Activity, Sparkles, Calendar, Award, ShieldCheck, Flame, Dumbbell, RefreshCw, LogOut, CheckCircle2, ChevronRight, Trash2, MessageSquare } from 'lucide-react';
+import { fetchUserWorkouts, fetchCoachingHistory, generateAIWorkoutPlan, fetchLatestAIWorkoutPlan, deleteCoachingLog } from '../services/api';
 
 export default function ProfilePage({ user, onLogout, onSelectExercise }) {
   const [activeTab, setActiveTab] = useState('history'); // 'history' | 'coaching' | 'plans'
@@ -9,17 +9,20 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
   const [currentPlan, setCurrentPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [planLoading, setPlanLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState(null);
 
   useEffect(() => {
     async function loadProfileData() {
       setLoading(true);
       try {
-        const [wData, cData] = await Promise.all([
+        const [wData, cData, pData] = await Promise.all([
           fetchUserWorkouts().catch(() => []),
           fetchCoachingHistory().catch(() => []),
+          fetchLatestAIWorkoutPlan().catch(() => null),
         ]);
         setWorkouts(wData);
         setCoachingLogs(cData);
+        if (pData) setCurrentPlan(pData);
       } catch (err) {
         console.error('Error loading profile data:', err);
       } finally {
@@ -29,14 +32,25 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
     loadProfileData();
   }, []);
 
+  const handleDeleteCoaching = async (coachingId) => {
+    if (!window.confirm('Are you sure you want to delete this AI coaching entry?')) return;
+    try {
+      await deleteCoachingLog(coachingId);
+      setCoachingLogs((prev) => prev.filter((log) => log.id !== coachingId));
+    } catch (err) {
+      setErrorMsg(`Failed to delete entry: ${err.message}`);
+    }
+  };
+
   const handleGeneratePlan = async () => {
     setPlanLoading(true);
+    setErrorMsg(null);
     try {
       const plan = await generateAIWorkoutPlan('DAILY');
       setCurrentPlan(plan);
       setActiveTab('plans');
     } catch (err) {
-      alert(`AI Plan Generation Error: ${err.message}`);
+      setErrorMsg(`AI Plan Error: ${err.message}`);
     } finally {
       setPlanLoading(false);
     }
@@ -55,6 +69,12 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
 
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-20 pt-2">
+      {errorMsg && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-900 p-4 rounded-2xl flex items-center justify-between text-xs font-medium">
+          <span>⚠️ {errorMsg}</span>
+          <button onClick={() => setErrorMsg(null)} className="text-amber-700 font-bold hover:underline">Dismiss</button>
+        </div>
+      )}
       
       {/* 1. Profile Header Card */}
       <div className="claude-card rounded-2xl p-6 sm:p-8 bg-white border border-[#e6e2dc] shadow-xs space-y-6">
@@ -166,7 +186,7 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
       {loading ? (
         <div className="text-center py-12 text-xs text-[#78716c]">Loading your profile analytics...</div>
       ) : (
-        <>
+        <div className="w-full">
           {/* TAB 1: Workout History */}
           {activeTab === 'history' && (
             <div className="space-y-4">
@@ -218,25 +238,77 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
             <div className="space-y-4">
               {coachingLogs.length > 0 ? (
                 coachingLogs.map((log) => (
-                  <div key={log.id} className="claude-card rounded-2xl p-6 bg-white border border-[#e6d4c9] shadow-2xs space-y-3">
+                  <div key={log.id} className="claude-card rounded-2xl p-6 bg-white border border-[#e6d4c9] shadow-2xs space-y-4 relative group">
+                    
                     <div className="flex items-center justify-between text-xs text-[#E87552] font-bold">
                       <div className="flex items-center gap-1.5">
-                        <Sparkles className="w-4 h-4" />
-                        <span>AWS Bedrock Session Analysis</span>
+                        {log.userPrompt ? <MessageSquare className="w-4 h-4 text-[#E87552]" /> : <Sparkles className="w-4 h-4 text-[#E87552]" />}
+                        <span>{log.userPrompt ? 'AWS Bedrock Q&A Chat' : 'AWS Bedrock Session Analysis'}</span>
                       </div>
-                      <span className="text-[10px] font-mono text-[#78716c]">
-                        {new Date(log.createdAt).toLocaleDateString()}
-                      </span>
+
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] font-mono text-[#78716c]">
+                          {new Date(log.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                        <button
+                          onClick={() => handleDeleteCoaching(log.id)}
+                          className="p-1.5 rounded-lg border border-[#e6e2dc] bg-[#faf8f5] text-[#78716c] hover:text-[#e11d48] hover:border-red-200 transition-all opacity-80 group-hover:opacity-100"
+                          title="Delete Chat / Log Entry"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
 
-                    <p className="text-xs text-[#171513] leading-relaxed">{log.summary}</p>
+                    {/* User Prompt Speech Bubble (if present) */}
+                    {log.userPrompt && (
+                      <div className="bg-[#f6eee9] border border-[#e6d4c9] p-3 rounded-xl text-xs font-medium text-[#171513] flex items-center gap-2">
+                        <span className="font-mono text-[11px] font-bold text-[#E87552] uppercase shrink-0">Q:</span>
+                        <span>"{log.userPrompt}"</span>
+                      </div>
+                    )}
 
+                    <p className="text-xs text-[#171513] leading-relaxed bg-[#fdfaf7] p-3.5 rounded-xl border border-[#e6e2dc]">
+                      {log.summary}
+                    </p>
+
+                    {/* Strengths & Areas To Improve Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      {log.strengths && log.strengths.length > 0 && (
+                        <div className="bg-emerald-50/70 border border-emerald-200/80 p-3 rounded-xl space-y-1">
+                          <span className="text-[10px] font-mono font-bold uppercase text-emerald-800">
+                            ✓ Key Strengths
+                          </span>
+                          <ul className="space-y-1 text-emerald-900 text-[11px]">
+                            {log.strengths.map((s, idx) => (
+                              <li key={idx}>• {s}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {log.areasToImprove && log.areasToImprove.length > 0 && (
+                        <div className="bg-amber-50/70 border border-amber-200/80 p-3 rounded-xl space-y-1">
+                          <span className="text-[10px] font-mono font-bold uppercase text-amber-800">
+                            ⚡ Form Refinements
+                          </span>
+                          <ul className="space-y-1 text-amber-900 text-[11px]">
+                            {log.areasToImprove.map((a, idx) => (
+                              <li key={idx}>• {a}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Recommendations */}
                     {log.recommendations && log.recommendations.length > 0 && (
-                      <div className="space-y-1.5 pt-2">
-                        <span className="text-[10px] font-mono font-bold uppercase text-[#8c827a]">Recommendations:</span>
+                      <div className="space-y-2 pt-1">
+                        <span className="text-[10px] font-mono font-bold uppercase text-[#8c827a]">Focus Cues:</span>
                         {log.recommendations.map((rec, i) => (
-                          <div key={i} className="text-xs bg-[#fdfaf7] border border-[#e6e2dc] p-2.5 rounded-xl text-[#171513]">
-                            • {typeof rec === 'string' ? rec : rec.cue || JSON.stringify(rec)}
+                          <div key={i} className="text-xs bg-[#faf8f5] border border-[#e6e2dc] p-2.5 rounded-xl text-[#171513] flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-[#E87552] mt-1.5 shrink-0" />
+                            <span>{typeof rec === 'string' ? rec : rec.cue || JSON.stringify(rec)}</span>
                           </div>
                         ))}
                       </div>
@@ -245,7 +317,7 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
                 ))
               ) : (
                 <div className="text-center py-12 bg-white rounded-2xl border border-[#e6e2dc] text-xs text-[#78716c]">
-                  No AI Coaching logs yet. Complete a workout session to receive personalized AWS Bedrock insights!
+                  No AI Coaching logs stored yet. Complete a workout session to receive personalized AWS Bedrock insights!
                 </div>
               )}
             </div>
@@ -255,26 +327,50 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
           {activeTab === 'plans' && (
             <div className="space-y-4">
               {currentPlan ? (
-                <div className="claude-card rounded-2xl p-6 bg-[#fdfaf7] border border-[#e6d4c9] shadow-sm space-y-4">
-                  <div className="flex items-center gap-2 text-[#E87552]">
-                    <Sparkles className="w-5 h-5" />
-                    <h3 className="font-serif-claude text-xl font-bold text-[#171513]">{currentPlan.title}</h3>
+                <div className="claude-card rounded-2xl p-6 bg-[#fdfaf7] border border-[#e6d4c9] shadow-sm space-y-5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-[#E87552]">
+                      <Sparkles className="w-5 h-5" />
+                      <h3 className="font-serif-claude text-xl font-bold text-[#171513]">{currentPlan.title}</h3>
+                    </div>
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                      ACTIVE PLAN
+                    </span>
                   </div>
 
-                  <p className="text-xs text-[#57534e] leading-relaxed bg-white p-3.5 rounded-xl border border-[#e6e2dc]">
-                    <strong>AI Reasoning:</strong> {currentPlan.aiReasoning}
+                  <p className="text-xs text-[#57534e] leading-relaxed bg-white p-4 rounded-xl border border-[#e6e2dc]">
+                    <strong className="text-[#E87552] block mb-1">AI Personalization Strategy:</strong> 
+                    {currentPlan.aiReasoning}
                   </p>
 
-                  <div className="space-y-2">
-                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8c827a]">Recommended Exercises:</h4>
+                  <div className="space-y-2.5">
+                    <h4 className="text-[10px] font-mono font-bold uppercase tracking-wider text-[#8c827a]">
+                      Prescribed Exercises:
+                    </h4>
                     {currentPlan.exercises && currentPlan.exercises.map((ex, idx) => (
-                      <div key={idx} className="bg-white p-3.5 rounded-xl border border-[#e6e2dc] flex justify-between items-center">
-                        <div>
-                          <h5 className="text-xs font-bold text-[#171513]">{ex.name || ex.slug}</h5>
-                          <p className="text-[11px] text-[#78716c] mt-0.5">Focus: {ex.focusCue}</p>
+                      <div key={idx} className="bg-white p-4 rounded-xl border border-[#e6e2dc] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 shadow-2xs">
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <Dumbbell className="w-4 h-4 text-[#E87552]" />
+                            <h5 className="text-xs font-bold text-[#171513]">{ex.name || ex.slug}</h5>
+                          </div>
+                          <p className="text-[11px] text-[#78716c]">
+                            Cue: <span className="text-[#57534e] font-medium">{ex.focusCue}</span>
+                          </p>
                         </div>
-                        <div className="text-xs font-mono font-bold text-[#E87552]">
-                          {ex.sets || 3} sets x {ex.reps || 10} reps ({ex.weightKg || 15}kg)
+
+                        <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="text-xs font-mono font-bold text-[#E87552] bg-[#f6eee9] px-3 py-1 rounded-lg border border-[#e6d4c9]">
+                            {ex.sets || 3} sets × {ex.reps || 10} reps ({ex.weightKg || 15}kg)
+                          </div>
+                          {onSelectExercise && (
+                            <button
+                              onClick={() => onSelectExercise(ex.slug || 'shoulder_press')}
+                              className="px-3 py-1.5 rounded-lg bg-zinc-900 text-white font-bold text-[11px] hover:bg-zinc-800 transition-all flex items-center gap-1 shrink-0"
+                            >
+                              Start <ChevronRight className="w-3 h-3 text-emerald-400" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -286,16 +382,16 @@ export default function ProfilePage({ user, onLogout, onSelectExercise }) {
                   <button
                     onClick={handleGeneratePlan}
                     disabled={planLoading}
-                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm"
+                    className="px-5 py-2.5 rounded-xl text-xs font-bold text-white shadow-sm hover:shadow-md transition-all"
                     style={{ background: '#E87552' }}
                   >
-                    {planLoading ? 'Generating Plan...' : 'Generate Daily AI Plan Now'}
+                    {planLoading ? 'Generating Plan via Bedrock...' : 'Generate Daily AI Plan Now'}
                   </button>
                 </div>
               )}
             </div>
           )}
-        </>
+        </div>
       )}
 
     </div>
