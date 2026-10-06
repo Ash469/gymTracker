@@ -49,8 +49,6 @@ async function login(req, res) {
 
 /**
  * POST /api/v1/auth/logout
- * With JWT, logout is stateless — the client discards the token.
- * This endpoint exists for API completeness (TRD §20).
  */
 async function logout(_req, res) {
   return res.json({ message: 'Logged out successfully.' });

@@ -4,7 +4,6 @@ const progressController = require('../controllers/progress.controller');
 
 const router = express.Router();
 
-// All progress routes require authentication
 router.use(authMiddleware);
 
 // GET /api/v1/progress               — overall progress

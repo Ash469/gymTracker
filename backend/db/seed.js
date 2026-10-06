@@ -6,7 +6,7 @@ const { pool, query } = require('./index');
  * Seed the exercises table and default demo user.
  */
 async function seed() {
-  console.log('🌱 Seeding database...\n');
+  console.log(' Seeding database...\n');
 
   try {
     // Seed Demo User
@@ -20,9 +20,9 @@ async function seed() {
          VALUES ($1, $2, $3, $4, $5, $6)`,
         [demoEmail, 'Demo Athlete', passwordHash, 'INTERMEDIATE', 'improve form', '4x/week']
       );
-      console.log('  ✓ Demo user created (demo@formfit.com)');
+      console.log(' Demo user created (demo@formfit.com)');
     } else {
-      console.log('  ✓ Demo user already exists');
+      console.log(' Demo user already exists');
     }
 
     const exercises = [
@@ -104,12 +104,12 @@ async function seed() {
            difficulty = EXCLUDED.difficulty`,
         [exercise.slug, exercise.name, exercise.description, exercise.muscleGroup, exercise.targetJoint, exercise.difficulty]
       );
-      console.log(`  ✓ ${exercise.name}`);
+      console.log(` ${exercise.name}`);
     }
 
-    console.log('\n✅ Seed complete.\n');
+    console.log('\n Seed complete.\n');
   } catch (err) {
-    console.error('❌ Seed failed:', err);
+    console.error(' Seed failed:', err);
     process.exit(1);
   } finally {
     await pool.end();

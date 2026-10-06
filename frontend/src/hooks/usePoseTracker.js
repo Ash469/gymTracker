@@ -23,6 +23,7 @@ export function usePoseTracker(activeExerciseId) {
 
   const animationFrameIdRef = useRef(null);
   const streamRef = useRef(null);
+  const lastVideoTimeRef = useRef(-1);
 
   // Initialize MediaPipe WASM PoseLandmarker Engine
   useEffect(() => {
@@ -88,6 +89,12 @@ export function usePoseTracker(activeExerciseId) {
     const canvas = canvasRef.current;
 
     if (video && canvas && video.readyState >= 2 && detectorReady) {
+      if (video.currentTime === lastVideoTimeRef.current) {
+        animationFrameIdRef.current = requestAnimationFrame(renderFrameLoop);
+        return;
+      }
+      lastVideoTimeRef.current = video.currentTime;
+
       const ctx = canvas.getContext('2d');
       const videoWidth = video.videoWidth || 640;
       const videoHeight = video.videoHeight || 480;

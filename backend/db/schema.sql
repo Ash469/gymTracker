@@ -1,8 +1,6 @@
 -- ─────────────────────────────────────────────────────────
--- FormFit — PostgreSQL Database Schema (camelCase column names)
--- Aligned with PRD 2.0 & TRD 2.0 (prodArc Architecture)
+--  PostgreSQL Database Schema 
 -- Supports AWS Bedrock Mode A (Proactive Growth Coach / Planner) 
--- & Mode B (Instant Biomechanical Set Breakdown)
 -- ─────────────────────────────────────────────────────────
 
 DROP TABLE IF EXISTS ai_workout_plans CASCADE;
