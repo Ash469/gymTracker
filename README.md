@@ -1,151 +1,137 @@
-# FormTracker - AI Gym Web Application & Vision Engine 🏋️‍♂️
+# FormFit — AI Exercise Form Tracker & Real-Time Pose Engine 🏋️‍♂️
 
-A professional, high-precision biomechanical computer vision platform that tracks exercise posture in real-time, counts valid repetitions via joint-angle state machines, provides immediate injury-risk guardrail alerts, and guides users through workouts via a modern **React Application** powered by a **Python AI Pose Engine**.
+An edge-first, AI-powered exercise form analysis platform that tracks body posture in real-time, counts repetitions via biomechanical state machines, provides live posture correction guardrails, and renders interactive analytics summaries.
 
----
-
-## 🛡️ Injury Guardrails & Form Matrix
-
-| Exercise | Critical Joint Tracked | Target Safe Range | Injury Risk Trigger & Bad Form Warning |
-| :--- | :--- | :--- | :--- |
-| **Squat** | Hip - Knee - Ankle | `70° – 95°` *(Parallel bottom depth)* | **Knee Valgus Collapse**: `knee_dist / ankle_dist < 0.75` → `"WARNING: Knee collapse inward (Valgus)! Drive knees outward"` |
-| **Bicep Curl** | Shoulder - Elbow - Wrist | `20° – 160°` | **Torso Swinging**: Arm-body angle deviation `>35°` → `"WARNING: Torso swinging / momentum usage! Keep elbows stationary"` |
-| **Dumbbell Bench Press** | Shoulder - Elbow - Wrist | `45° – 90°` | **Rotator Cuff Strain**: Elbow flare angle `>80°` relative to torso → `"WARNING: Excessive elbow flare (>80°)! Tuck elbows to 45-60°"` |
-| **Dumbbell Shoulder Press** | Shoulder - Elbow - Wrist / Spine | `170° – 180°` *(Overhead lockout)* | **Lumbar Hyperextension**: Body spine angle `<155°` during overhead push → `"WARNING: Lower back lumbar hyperextension! Engage core & keep spine neutral"` |
-| **Overhead Tricep Extension** | Shoulder - Elbow - Wrist | `<85°` to `>155°` | **Elbow Flaring**: Upper arm drift angle `<140°` → `"WARNING: Elbows flaring / upper arm moving! Keep upper arms stationary near head"` |
-| **Single-Arm Dumbbell Row** | Shoulder - Elbow - Wrist | `70° – 95°` *(Hip row pull)* | **Excessive Torso Twisting**: Shoulder height tilt `>80px` → `"WARNING: Excessive torso twisting! Keep back flat & pull toward hip"` |
-| **Dumbbell Russian Twist** | Shoulder Rotational Yaw / Torso | Left-Right side transitions | **Spine Collapse**: Torso incline angle `<25°` → `"WARNING: Spine collapse / rounding lower back! Maintain 45° incline"` |
-| **Dumbbell Lateral Raise** | Shoulder Abduction | `80° – 100°` *(T-Shape)* | **Shoulder Impingement**: Raising arms `>105°` → `"WARNING: Raising arms above shoulder plane (>100°)! Keep in T-shape at shoulder height"` |
-| **Dumbbell Calf Raise** | Ankle Plantarflexion | `85° – 110°` to `>130°` | **Knee Flexion**: Knee bend angle `<150°` → `"WARNING: Knees bending! Keep legs straight throughout calf raise"` |
+Powered by a **React Frontend** communicating via **WebSockets** with a **Python OpenCV & MediaPipe ML Service**.
 
 ---
 
-## 🏋️‍♂️ Supported Exercises Suite (9 Models)
+## 🏗️ Core Architecture & Data Flow
 
-### 1. Bicep Curl
-- **Target Muscles:** Biceps Brachii, Brachialis, Brachioradialis (Forearm)
-- **Target Range:** 20° – 160°
-- **Primary Guardrail:** Torso swinging / momentum usage prevention
-
-### 2. Shoulder Press (Seated Dumbbell)
-- **Target Muscles:** Deltoids (Anterior & Medial heads), Triceps, Trapezius
-- **Target Range:** 170° – 180° overhead extension
-- **Primary Guardrail:** Lower back lumbar hyperextension prevention
-
-### 3. Tricep Extension (Overhead Dumbbell)
-- **Target Muscles:** Triceps Brachii (Long, Lateral & Medial heads)
-- **Target Range:** <85° flexed stretch to >155° lockout
-- **Primary Guardrail:** Upper arm flaring & head proximity control
-
-### 4. Dumbbell Bench Press (Flat)
-- **Target Muscles:** Pectoralis Major (Chest), Anterior Deltoids, Triceps
-- **Target Range:** 45° – 90° bottom chest level rack
-- **Primary Guardrail:** Rotator cuff elbow flare protection (45°-60° angle)
-
-### 5. Single-Arm Dumbbell Row (Bench Supported)
-- **Target Muscles:** Latissimus Dorsi (Lats), Rhomboids, Trapezius, Rear Deltoids, Biceps
-- **Target Range:** 70° – 95° hip pull
-- **Primary Guardrail:** Torso rotation & shrugging prevention
-
-### 6. Squat (Barbell / Dumbbell)
-- **Target Muscles:** Quadriceps, Hamstrings, Glutes, Adductors, Core
-- **Target Range:** 70° – 95° parallel depth
-- **Primary Guardrail:** Knee valgus collapse (inward knee buckling) detection
-
-### 7. Dumbbell Russian Twist
-- **Target Muscles:** Obliques (Internal & External), Rectus Abdominis, Transverse Abdominis, Hip Flexors
-- **Target Range:** Alternating left-right side rotation
-- **Primary Guardrail:** Lower back rounding & spine collapse prevention
-
-### 8. Lateral Raise (Dumbbell)
-- **Target Muscles:** Deltoids (Medial head), Trapezius
-- **Target Range:** 80° – 100° T-shape shoulder plane
-- **Primary Guardrail:** Shoulder joint impingement protection (>105° raise limit)
-
-### 9. Calf Raise (Dumbbell)
-- **Target Muscles:** Gastrocnemius, Soleus (Calf muscles)
-- **Target Range:** 85° – 110° stretch to >130° toe extension
-- **Primary Guardrail:** Knee bending prevention (forcing straight leg execution)
+```text
+                               ┌───────────────┐
+                               │  User Browser │
+                               │               │
+                               │    React      │
+                               │ getUserMedia()│
+                               └───────┬───────┘
+                                       │
+                     ┌─────────────────┴──────────────────┐
+                     │                                    │
+                   HTTPS                                WSS
+                     │                                    │
+                     ▼                                    ▼
+              ┌───────────────┐                  ┌────────────────┐
+              │ Node.js       │                  │ Python ML      │
+              │ Backend       │                  │ WebSocket      │
+              │ (App Logic)   │                  │ (MediaPipe/CV) │
+              └───────┬───────┘                  └────────────────┘
+                      │
+              ┌───────┴─────────┐
+              │                 │
+              ▼                 ▼
+       ┌──────────────┐   ┌───────────────┐
+       │ RDS          │   │ Amazon        │
+       │ PostgreSQL   │   │ Bedrock AI    │
+       └──────────────┘   └───────────────┘
+```
 
 ---
 
-## 🏗️ Architecture & Project Structure
+## 📁 Repository Structure
 
 ```text
 gym-form-tracker-main/
-├── app.py                      # Headless Flask REST & Video Stream Server (Port 5000)
-├── main.py                     # Standalone OpenCV Desktop Video Tracker CLI
-├── requirements.txt            # Python dependencies (mediapipe, opencv-python, flask, numpy)
-├── src/
-│   ├── pose_detector.py        # MediaPipe Pose Landmarker Wrapper & Vector Math Engine
-│   ├── tracker.py              # Telemetry & Rep State Processor
-│   ├── utils.py                # 2D Joint Vector Angle Calculator
-│   └── exercises/
-│       ├── base_exercise.py    # Abstract Exercise Base Class & Form Scoring Engine
-│       ├── registry.py         # Global Exercise Registry Singleton
-│       ├── bicep_curl.py       # Bicep Curl Pose State Machine & Guardrails
-│       ├── calf_raise.py       # Calf Raise Pose State Machine & Guardrails
-│       ├── dumbbell_bench_press.py
-│       ├── lateral_raise.py
-│       ├── russian_twist.py
-│       ├── shoulder_press.py
-│       ├── single_arm_dumbbell_row.py
-│       ├── squat.py
-│       └── tricep_extension.py
-└── frontend/
-    ├── vite.config.js          # Vite server config with API proxy to Python backend
-    ├── tailwind.config.js      # Tailwind CSS styling tokens & design system
-    ├── index.html              # HTML5 Web App Entry
-    ├── assets/                 # High-Resolution Exercise Demonstration Images
-    └── src/
-        ├── App.jsx             # Main Application State & Client Router
-        ├── main.jsx            # React 18 Mounting Root
-        ├── index.css           # Global CSS & Tailwind Directives
-        ├── services/
-        │   └── api.js          # REST Client API for Python Telemetry Endpoints
-        ├── components/
-        │   ├── Navbar.jsx      # Sticky Full-Bleed Glassmorphism Header
-        │   ├── ExerciseCard.jsx# Interactive Exercise Dashboard Card
-        │   ├── ExerciseDemoVisual.jsx # Movement Guide Reference Visual
-        │   ├── AngleGauge.jsx  # Real-Time Joint Angle Telemetry Gauge
-        │   ├── PostureAlert.jsx# Live Form Warning Banner
-        │   └── StopConfirmModal.jsx
-        ├── exercises/          # Modular Exercise Data Files
-        │   ├── bicep_curl.js
-        │   ├── calf_raise.js
-        │   ├── dumbbell_bench_press.js
-        │   ├── lateral_raise.js
-        │   ├── russian_twist.js
-        │   ├── shoulder_press.js
-        │   ├── single_arm_dumbbell_row.js
-        │   ├── squat.js
-        │   └── tricep_extension.js
-        └── pages/
-            ├── SelectionPage.jsx # Exercise Catalog & Category Filter Dashboard
-            ├── TutorialPage.jsx  # Exercise Guide & Instructions
-            ├── TrackerPage.jsx   # Live Pose Tracking Workspace
-            └── SummaryPage.jsx   # Workout Analytics & Form Score Summary
+├── frontend/                     # React 18 Web Application (Vite + Tailwind CSS)
+│   ├── src/
+│   │   ├── components/           # UI Components (Navbar, PostureAlert, AngleGauge)
+│   │   ├── hooks/                # Custom React Hooks (usePoseTracker.js)
+│   │   ├── pages/                # App Views (SelectionPage, TutorialPage, TrackerPage, SummaryPage)
+│   │   └── services/             # WebSocket Client (websocket.js) & REST API (api.js)
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── vercel.json
+│
+├── ml-service/                   # Python AI Computer Vision Engine & WebSocket Server
+│   ├── src/
+│   │   ├── pose_detector.py      # MediaPipe Landmarker Wrapper & Normalized Scaling
+│   │   ├── tracker.py            # Pose State Processor
+│   │   ├── utils.py              # Joint Angle Vector Math
+│   │   └── exercises/            # Biomechanical Exercise Models (Squat, ShoulderPress, etc.)
+│   ├── server.py                 # Async WebSocket + REST API Engine Server (Port 8000)
+│   ├── requirements.txt
+│   └── Dockerfile
+│
+├── docker-compose.yml            # Multi-container orchestration
+├── render.yaml                   # Render Blueprint config
+└── README.md
 ```
 
 ---
 
-## ⚡ How to Run
+## ⚡ How to Run Locally
 
-### 1. Start the Python AI Engine Backend
-In your primary terminal:
-
+### 1. Install Dependencies
 ```bash
-python app.py
-```
-*(Runs the MediaPipe Pose tracking engine & API server at `http://127.0.0.1:5000`)*
+# Python dependencies
+pip install -r ml-service/requirements.txt
 
-### 2. Start the React Frontend Application
-In a second terminal inside `frontend/`:
-
-```bash
+# Frontend dependencies
 cd frontend
 npm install
+cd ..
+```
+
+### 2. Start Python ML WebSocket Service (Port 8000)
+In your terminal:
+```bash
+python ml-service/server.py
+```
+*(Runs the Python MediaPipe Pose WebSocket Engine at `ws://localhost:8000`)*
+
+### 3. Start React Frontend Application (Port 5173)
+In a second terminal:
+```bash
+cd frontend
 npm run dev
 ```
 
-Open **`http://localhost:5173`** in your browser to launch the **FormTracker React Application**!
+Open **`http://localhost:5173`** in your browser.
+
+---
+
+## 🚀 Deployment Guide
+
+### Deploying Python ML Service (Render / Railway / AWS)
+- **Container Deployment**: Build and run using `ml-service/Dockerfile`.
+- **Environment Variables**:
+  - `HOST`: `0.0.0.0`
+  - `PORT`: `8000`
+- **WS Endpoint**: `wss://<your-ml-service-domain>/ws`
+
+### Deploying React Frontend (Vercel / Netlify / Cloudflare Pages)
+- **Root Directory**: `./frontend`
+- **Build Command**: `npm run build`
+- **Output Directory**: `dist`
+- **Environment Variables**:
+  - `VITE_WS_URL`: `wss://<your-ml-service-domain>`
+
+### Docker Compose (One-Command Launch)
+```bash
+docker-compose up --build
+```
+
+---
+
+## 🛡️ Exercise Suite & Guardrails
+
+| Exercise | Critical Joint Tracked | Target Safe Range | Injury Risk Guardrail Warning |
+| :--- | :--- | :--- | :--- |
+| **Squat** | Hip - Knee - Ankle | `70° – 95°` | **Knee Valgus Collapse**: `knee_dist / ankle_dist < 0.75` |
+| **Bicep Curl** | Shoulder - Elbow - Wrist | `20° – 160°` | **Torso Swinging**: Arm-body angle deviation `>35°` |
+| **Dumbbell Bench Press** | Shoulder - Elbow - Wrist | `45° – 90°` | **Rotator Cuff Strain**: Elbow flare angle `>80°` |
+| **Dumbbell Shoulder Press** | Shoulder - Elbow - Wrist | `170° – 180°` | **Lumbar Hyperextension**: Body spine angle `<155°` |
+| **Overhead Tricep Extension**| Shoulder - Elbow - Wrist | `<85°` to `>155°`| **Elbow Flaring**: Upper arm drift angle `<140°` |
+| **Single-Arm Dumbbell Row** | Shoulder - Elbow - Wrist | `70° – 95°` | **Torso Twisting**: Shoulder height tilt `>80px` |
+| **Dumbbell Russian Twist** | Torso Incline | Left-Right side | **Spine Collapse**: Torso incline angle `<25°` |
+| **Dumbbell Lateral Raise** | Shoulder Abduction | `80° – 100°` | **Shoulder Impingement**: Arms raised `>105°` |
