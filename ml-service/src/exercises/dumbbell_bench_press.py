@@ -25,35 +25,55 @@ class DumbbellBenchPress(BaseExercise):
         is_good_form = True
         self.form_warning = ""
 
-        # Form / Safety Checks
+        # Form / Safety Checks (INDEPENDENT of rep state)
+        # 1. Elbow flare (>80° relative to torso) - rotator cuff injury risk
         flare_angle = calculate_angle(l_hip, l_shoulder, l_elbow)
         if flare_angle > 80:
             self.form_warning = "WARNING: Excessive elbow flare (>80°)! Tuck elbows to protect rotator cuff"
             is_good_form = False
 
-        if not self.active:
-            self.active = True
-            self.stage = "DOWN"
-            self.feedback = "TRACKING ACTIVE! PRESS DUMBBELLS UPWARD"
-            if not self.start_workout_time:
-                self.start_workout_time = time.time()
+        # 2. Elbow dropping well below shoulder level (y offset)
+        if l_elbow[1] - l_shoulder[1] > 60:
+            self.form_warning = "WARNING: Elbow dropping too far below shoulder line! Shoulder strain risk"
+            is_good_form = False
 
-        if angle >= 145:
-            if self.stage == "DOWN" or not self.has_reached_target_state:
-                self.stage = "UP"
-                self.has_reached_target_state = True
-                self.feedback = "CHEST LOCKOUT REACHED! LOWER TO CHEST LEVEL"
-        elif angle <= 95:
-            if self.stage == "UP" and self.has_reached_target_state:
+        # Hold starting rack (75°-95°) for 2s to activate
+        if not self.active:
+            if 75 <= angle <= 95:
+                if self.hold_start_time is None:
+                    self.hold_start_time = time.time()
+                elapsed = time.time() - self.hold_start_time
+                remaining = max(0.0, self.required_hold_duration - elapsed)
+
+                if elapsed >= self.required_hold_duration:
+                    self.active = True
+                    self.stage = "UP"
+                    self.feedback = "TRACKING ACTIVE! PRESS DUMBBELLS UPWARD (>=175°)"
+                    self.hold_start_time = None
+                    if not self.start_workout_time:
+                        self.start_workout_time = time.time()
+                else:
+                    self.feedback = f"HOLD STILL TO START: {remaining:.1f}s"
+            else:
+                self.hold_start_time = None
+                self.feedback = "HOLD WEIGHTS AT CHEST LEVEL (75°-95°) TO START"
+
+            return self.counter, "INACTIVE", angle, self.feedback, self.active, self.form_warning, self.form_score
+
+        # Rep-State Machine
+        if angle >= 175:
+            self.stage = "DOWN"
+            self.has_reached_target_state = True
+            self.feedback = "FULL LOCKOUT (>=175°)! LOWER BACK TO CHEST"
+        elif angle <= 75:
+            if self.stage == "DOWN" and self.has_reached_target_state:
                 self.counter += 1
                 self.has_reached_target_state = False
                 self.feedback = "GREAT BENCH PRESS REP!"
-                self.rep_history.append({
-                    "rep": self.counter,
-                    "timestamp": round(time.time(), 2),
-                    "quality": "Good" if is_good_form else "Warning"
-                })
-            self.stage = "DOWN"
+                self.rep_history.append({"rep": self.counter, "timestamp": round(time.time(), 2), "quality": "Good" if is_good_form else "Warning"})
+            elif self.stage == "UP" and not self.has_reached_target_state:
+                self.feedback = "PRESS WEIGHTS UPWARD"
+            self.stage = "UP"
 
         self.update_form_score(is_good_form)
         return self.counter, self.stage, angle, self.feedback, self.active, self.form_warning, self.form_score

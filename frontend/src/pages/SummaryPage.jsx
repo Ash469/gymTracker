@@ -1,7 +1,25 @@
 import React from 'react';
 
 export default function SummaryPage({ summary, onTrainAnother, onRetry }) {
-  if (!summary) return null;
+  if (!summary) {
+    return (
+      <div className="max-w-md mx-auto py-20 text-center space-y-4">
+        <div className="w-12 h-12 rounded-full bg-zinc-100 flex items-center justify-center mx-auto text-xl">
+          📊
+        </div>
+        <h3 className="text-base font-semibold text-zinc-900">No active summary available</h3>
+        <p className="text-xs text-zinc-500">
+          Select an exercise from the catalog, perform your reps, and finish your set to see your summary.
+        </p>
+        <button
+          onClick={onTrainAnother}
+          className="px-5 py-2.5 bg-zinc-900 text-white text-xs font-semibold rounded-xl hover:bg-zinc-800 transition shadow-sm"
+        >
+          Go to Exercise Catalog →
+        </button>
+      </div>
+    );
+  }
 
   const formatTime = (secs) => {
     const m = String(Math.floor(secs / 60)).padStart(2, '0');

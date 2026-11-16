@@ -7,10 +7,9 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-      '/ws': {
-        target: 'ws://127.0.0.1:8000',
-        ws: true
-      }
+      '/api/v1': 'http://127.0.0.1:4000',
+      '/api': 'http://127.0.0.1:5001',
+      '/video_feed': 'http://127.0.0.1:5001'
     }
   }
 })

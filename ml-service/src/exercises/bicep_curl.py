@@ -25,44 +25,60 @@ class BicepCurl(BaseExercise):
         is_good_form = True
         self.form_warning = ""
 
-        # Form / Safety Checks
+        # Form / Safety Checks (INDEPENDENT of rep depth threshold)
         if l_hip:
+            # 1. Upper-arm drift / swinging (elbow-shoulder-hip angle)
             arm_body_angle = calculate_angle(l_hip, l_shoulder, l_elbow)
-            if arm_body_angle > 20:
-                self.form_warning = "WARNING: Upper-arm drift / swinging (>20°)! Keep elbows stationary"
+            if arm_body_angle > 15:
+                self.form_warning = "WARNING: Upper-arm drift / swinging (>15°)! Keep elbows stationary"
                 is_good_form = False
 
+            # 2. Torso lean from vertical
             dx = abs(l_shoulder[0] - l_hip[0])
             dy = abs(l_shoulder[1] - l_hip[1]) + 1e-6
             import numpy as np
             torso_lean = np.degrees(np.arctan2(dx, dy))
-            if torso_lean > 20:
-                self.form_warning = "WARNING: Torso lean > 20°! Avoid using back momentum"
+            if torso_lean > 15:
+                self.form_warning = "WARNING: Torso lean > 15°! Avoid using back momentum"
                 is_good_form = False
 
+        # Hold starting position (>165 deg) for 2s to activate
         if not self.active:
-            self.active = True
-            self.stage = "DOWN"
-            self.feedback = "TRACKING ACTIVE! CURL WEIGHT UPWARD"
-            if not self.start_workout_time:
-                self.start_workout_time = time.time()
+            if angle >= 165:
+                if self.hold_start_time is None:
+                    self.hold_start_time = time.time()
+                elapsed = time.time() - self.hold_start_time
+                remaining = max(0.0, self.required_hold_duration - elapsed)
 
-        if angle <= 70:
-            if self.stage == "DOWN" or not self.has_reached_target_state:
-                self.stage = "UP"
-                self.has_reached_target_state = True
-                self.feedback = "PEAK BICEP CONTRACTION! LOWER UNDER CONTROL"
-        elif angle >= 135:
-            if self.stage == "UP" and self.has_reached_target_state:
+                if elapsed >= self.required_hold_duration:
+                    self.active = True
+                    self.stage = "UP"
+                    self.feedback = "TRACKING ACTIVE! CURL WEIGHT UPWARD"
+                    self.hold_start_time = None
+                    if not self.start_workout_time:
+                        self.start_workout_time = time.time()
+                else:
+                    self.feedback = f"HOLD STILL TO START: {remaining:.1f}s"
+            else:
+                self.hold_start_time = None
+                self.feedback = "EXTEND ARM STRAIGHT (>=165 deg) TO START"
+
+            return self.counter, "INACTIVE", angle, self.feedback, self.active, self.form_warning, self.form_score
+
+        # Rep-State Machine (Decoupled from form warnings)
+        if angle <= 40:
+            self.stage = "DOWN"
+            self.has_reached_target_state = True
+            self.feedback = "PEAK BICEP CONTRACTION! LOWER UNDER CONTROL"
+        elif angle >= 165:
+            if self.stage == "DOWN" and self.has_reached_target_state:
                 self.counter += 1
                 self.has_reached_target_state = False
                 self.feedback = "GREAT BICEP CURL REP!"
-                self.rep_history.append({
-                    "rep": self.counter,
-                    "timestamp": round(time.time(), 2),
-                    "quality": "Good" if is_good_form else "Warning"
-                })
-            self.stage = "DOWN"
+                self.rep_history.append({"rep": self.counter, "timestamp": round(time.time(), 2), "quality": "Good" if is_good_form else "Warning"})
+            elif self.stage == "UP" and not self.has_reached_target_state:
+                self.feedback = "CURL WEIGHT UPWARD (<=40°)"
+            self.stage = "UP"
 
         self.update_form_score(is_good_form)
         return self.counter, self.stage, angle, self.feedback, self.active, self.form_warning, self.form_score

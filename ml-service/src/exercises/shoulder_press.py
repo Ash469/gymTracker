@@ -26,7 +26,8 @@ class ShoulderPress(BaseExercise):
         is_good_form = True
         self.form_warning = ""
 
-        # Form / Safety Checks
+        # Form / Safety Checks (INDEPENDENT of rep state)
+        # 1. Lower-back lumbar hyperextension / backward torso arching (>25° lean from vertical)
         dx = abs(l_shoulder[0] - l_hip[0])
         dy = abs(l_shoulder[1] - l_hip[1]) + 1e-6
         torso_lean = np.degrees(np.arctan2(dx, dy))
@@ -34,35 +35,48 @@ class ShoulderPress(BaseExercise):
             self.form_warning = "WARNING: Lower back hyperextension! Engage core & avoid arching spine"
             is_good_form = False
 
-        if angle > 185:
+        # 2. Elbow hyperextension at lockout (>180°)
+        if angle > 180:
             self.form_warning = "WARNING: Elbow hyperextension at lockout! Keep soft bend"
             is_good_form = False
 
-        # Auto-activate tracking as soon as pose is detected
+        # Hold starting stance (70°-110°) for 2s to activate
         if not self.active:
-            self.active = True
-            self.stage = "DOWN"
-            self.feedback = "TRACKING ACTIVE! PRESS WEIGHT OVERHEAD"
-            if not self.start_workout_time:
-                self.start_workout_time = time.time()
+            if 70 <= angle <= 110:
+                if self.hold_start_time is None:
+                    self.hold_start_time = time.time()
+                elapsed = time.time() - self.hold_start_time
+                remaining = max(0.0, self.required_hold_duration - elapsed)
 
-        # Rep-State Machine
-        if angle >= 140:
-            if self.stage == "DOWN" or not self.has_reached_target_state:
-                self.stage = "UP"
-                self.has_reached_target_state = True
-                self.feedback = "OVERHEAD LOCKOUT! LOWER TO SHOULDERS"
-        elif angle <= 105:
-            if self.stage == "UP" and self.has_reached_target_state:
+                if elapsed >= self.required_hold_duration:
+                    self.active = True
+                    self.stage = "UP"
+                    self.feedback = "TRACKING ACTIVE! PRESS OVERHEAD (>=155°)"
+                    self.hold_start_time = None
+                    if not self.start_workout_time:
+                        self.start_workout_time = time.time()
+                else:
+                    self.feedback = f"HOLD STILL TO START: {remaining:.1f}s"
+            else:
+                self.hold_start_time = None
+                self.feedback = "HOLD HANDS AT SHOULDER LEVEL (70°-110°) TO START"
+
+            return self.counter, "INACTIVE", angle, self.feedback, self.active, self.form_warning, self.form_score
+
+        # Rep-State Machine (Top Lockout >= 155°, Bottom Return <= 90°)
+        if angle >= 155:
+            self.stage = "DOWN"
+            self.has_reached_target_state = True
+            self.feedback = "OVERHEAD LOCKOUT! LOWER TO SHOULDERS"
+        elif angle <= 90:
+            if self.stage == "DOWN" and self.has_reached_target_state:
                 self.counter += 1
                 self.has_reached_target_state = False
                 self.feedback = "GREAT SHOULDER PRESS REP!"
-                self.rep_history.append({
-                    "rep": self.counter,
-                    "timestamp": round(time.time(), 2),
-                    "quality": "Good" if is_good_form else "Warning"
-                })
-            self.stage = "DOWN"
+                self.rep_history.append({"rep": self.counter, "timestamp": round(time.time(), 2), "quality": "Good" if is_good_form else "Warning"})
+            elif self.stage == "UP" and not self.has_reached_target_state:
+                self.feedback = "PRESS WEIGHT OVERHEAD"
+            self.stage = "UP"
 
         self.update_form_score(is_good_form)
         return self.counter, self.stage, angle, self.feedback, self.active, self.form_warning, self.form_score

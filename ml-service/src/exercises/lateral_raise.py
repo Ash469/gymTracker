@@ -26,40 +26,56 @@ class LateralRaise(BaseExercise):
         self.form_warning = ""
 
         # Form / Safety Checks
-        if angle > 105:
-            self.form_warning = "WARNING: Arms raised past shoulder plane (>105°)! Impingement risk"
+        # 1. Raising past ~100°–110° (shoulder impingement risk warning - legitimate depth safety check)
+        if angle > 100:
+            self.form_warning = "WARNING: Arms raised past shoulder plane (>100°)! Impingement risk"
             is_good_form = False
 
+        # 2. Torso lean / swing > 10°
         dx_torso = abs(l_shoulder[0] - l_hip[0])
         dy_torso = abs(l_shoulder[1] - l_hip[1]) + 1e-6
         torso_swing = np.degrees(np.arctan2(dx_torso, dy_torso))
-        if torso_swing > 15:
-            self.form_warning = "WARNING: Torso swing > 15°! Use deltoids without momentum"
+        if torso_swing > 10:
+            self.form_warning = "WARNING: Torso swing > 10°! Use deltoids without momentum"
             is_good_form = False
 
+        # Hold rest posture (<=15 deg) for 2s to activate
         if not self.active:
-            self.active = True
-            self.stage = "DOWN"
-            self.feedback = "TRACKING ACTIVE! RAISE ARMS TO SHOULDER HEIGHT"
-            if not self.start_workout_time:
-                self.start_workout_time = time.time()
+            if angle <= 15:
+                if self.hold_start_time is None:
+                    self.hold_start_time = time.time()
+                elapsed = time.time() - self.hold_start_time
+                remaining = max(0.0, self.required_hold_duration - elapsed)
 
-        if angle >= 75:
-            if self.stage == "DOWN" or not self.has_reached_target_state:
-                self.stage = "UP"
-                self.has_reached_target_state = True
-                self.feedback = "SHOULDER HEIGHT REACHED! LOWER SLOWLY"
-        elif angle <= 30:
-            if self.stage == "UP" and self.has_reached_target_state:
+                if elapsed >= self.required_hold_duration:
+                    self.active = True
+                    self.stage = "UP"
+                    self.feedback = "TRACKING ACTIVE! RAISE ARMS TO SHOULDER HEIGHT (80°-100°)"
+                    self.hold_start_time = None
+                    if not self.start_workout_time:
+                        self.start_workout_time = time.time()
+                else:
+                    self.feedback = f"HOLD STILL TO START: {remaining:.1f}s"
+            else:
+                self.hold_start_time = None
+                self.feedback = "REST ARMS AT SIDES (<=15 deg) TO START"
+
+            return self.counter, "INACTIVE", angle, self.feedback, self.active, self.form_warning, self.form_score
+
+        # Rep-State Machine
+        if 80 <= angle <= 100:
+            self.stage = "DOWN"
+            self.has_reached_target_state = True
+            self.feedback = "PARALLEL SHOULDER HEIGHT! LOWER SLOWLY"
+        elif angle <= 15:
+            if self.stage == "DOWN" and self.has_reached_target_state:
                 self.counter += 1
                 self.has_reached_target_state = False
                 self.feedback = "GREAT LATERAL RAISE REP!"
-                self.rep_history.append({
-                    "rep": self.counter,
-                    "timestamp": round(time.time(), 2),
-                    "quality": "Good" if is_good_form else "Warning"
-                })
-            self.stage = "DOWN"
+                self.rep_history.append({"rep": self.counter, "timestamp": round(time.time(), 2), "quality": "Good" if is_good_form else "Warning"})
+            elif self.stage == "UP" and not self.has_reached_target_state:
+                self.feedback = "RAISE ARMS OUTWARD TO PARALLEL"
+            self.stage = "UP"
 
         self.update_form_score(is_good_form)
         return self.counter, self.stage, angle, self.feedback, self.active, self.form_warning, self.form_score
